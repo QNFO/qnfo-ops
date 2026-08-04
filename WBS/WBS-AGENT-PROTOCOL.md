@@ -6,6 +6,30 @@
 
 ---
 
+## §0 Consolidated Program Codes (2026-08-04)
+
+On 2026-08-04, 45 project-level repos were consolidated into 7 program repos in the QNFO org.
+These are the CANONICAL program codes for ALL new work — version updates, research extensions,
+and new projects use these codes in branches, tags, D1 entries, and KG edges.
+
+| WBS Code | Program | Portfolio | Repo | Branch prefix | update_plan prefix |
+|:---------|:--------|:----------|:-----|:--------------|:-------------------|
+| `UMP` | Ultrametric Physics | QNFO | `QNFO/ultrametric-physics` | `ump/` | `[QNFO.UMP.001.P0]` |
+| `SLB` | Laws of Form (Spencer-Brown) | QNFO | `QNFO/laws-of-form` | `slb/` | `[QNFO.SLB.001.P0]` |
+| `INM` | Infomatics | QNFO | `QNFO/infomatics` | `inm/` | `[QNFO.INM.001.P0]` |
+| `CFE` | CFPE (Cascading Foresight) | QNFO | `QNFO/cfpe` | `cfe/` | `[QNFO.CFE.001.P0]` |
+| `RES` | QNFO Research Archive | QNFO | `QNFO/qnfo-research` | `res/` | `[QNFO.RES.001.P0]` |
+| `PLT` | QWAV Platform | QWAV | `QNFO/qwav-platform` | `plt/` | `[QWAV.PLT.001.P0]` |
+| `DEM` | QWAV Demos | QWAV | `QNFO/qwav-demos` | `dem/` | `[QWAV.DEM.001.P0]` |
+
+**Branch naming (HARD):** `{prog}/{type}/{slug}` — lowercase program code, work type
+(`paper`/`audit`/`artifact`/`infra`/`fix`/`kaizen`), then the paper/project slug.
+Example: `ump/paper/adelic-shannon-theory`, `res/audit/acrp04-five-smooth`, `plt/infra/d1-backfill`.
+
+**Version updates & research extensions:** use the same program code + new project number —
+`[QNFO.UMP.002.P4]` for a new Ultrametric Physics paper, `[QNFO.CFE.002.P9]` for a CFPE extension.
+Full canonical mapping: qnfo-core §N-1, WBS.TAXONOMY.md §8.
+
 ## §1 Core Principle
 
 **WBS codes are the universal addressing scheme for all agent work.** Every `update_plan` step carries a WBS code prefix. This enables:
