@@ -125,8 +125,8 @@ No projects registered yet. Papers are tracked as KG Paper nodes under this prog
 | WBS | Level | Name | Slug | GitHub | Status |
 |:----|:------|:-----|:-----|:-------|:------:|
 | `QNFO.SLB` | program | Laws of Form (Spencer-Brown) | `laws-of-form` | `QNFO/laws-of-form` | active |
-| `QNFO.SLB.001` | project | The Idempotent Core: Quantity as Broken Distinction | `idempotent-core` | `QNFO/laws-of-form` | active (P1) |
-| `QNFO.SLB.002` | project | The Void Is Not False | `void-is-not-false` | `QNFO/laws-of-form` | active (P1) |
+| `QNFO.SLB.001` | project | The Idempotent Core: Quantity as Broken Distinction | `idempotent-core` | `QNFO/laws-of-form` | active (P4) |
+| `QNFO.SLB.002` | project | The Void Is Not False | `void-is-not-false` | `QNFO/laws-of-form` | active (P4) |
 
 ---
 
