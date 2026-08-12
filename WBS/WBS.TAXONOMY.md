@@ -120,6 +120,14 @@ No projects registered yet. Papers are tracked as KG Paper nodes under this prog
 | `QNFO.CGS` | program | Consilient Gap Synthesis | `consilient-gap-synthesis` | `QNFO/consilient-gap-synthesis` | active |
 | `QNFO.CGS.001` | project | QNFO/QWAV Portfolio Gap Synthesis | `consilient-gap-synthesis` | `QNFO/consilient-gap-synthesis` | active (P5) |
 
+### Program: QNFO.SLB — Laws of Form (Spencer-Brown)
+
+| WBS | Level | Name | Slug | GitHub | Status |
+|:----|:------|:-----|:-----|:-------|:------:|
+| `QNFO.SLB` | program | Laws of Form (Spencer-Brown) | `laws-of-form` | `QNFO/laws-of-form` | active |
+| `QNFO.SLB.001` | project | The Idempotent Core: Quantity as Broken Distinction | `idempotent-core` | `QNFO/laws-of-form` | active (P1) |
+| `QNFO.SLB.002` | project | The Void Is Not False | `void-is-not-false` | `QNFO/laws-of-form` | active (P1) |
+
 ---
 
 ## §4 Version Tag Convention
