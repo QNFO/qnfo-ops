@@ -1,7 +1,7 @@
 # WBS.TAXONOMY — Canonical Program/Project Registry
 
 **Authority:** ADR-2026-007  
-**Last Updated:** 2026-08-04  
+**Last Updated:** 2026-08-13  
 **Source of Truth:** D1 `portfolio-state.program_registry` + KG nodes (label=Program/Project)
 
 ---
@@ -49,6 +49,13 @@
 | WBS | Level | Name | Slug | Status | Zenodo DOI |
 |:----|:------|:-----|:-----|:------:|:-----------|
 | `QNFO` | portfolio | QNFO Research Foundation | `qnfo` | active | — |
+
+### Program: QNFO.GOV — Portfolio Governance & Public Transparency
+
+| WBS | Level | Name | Slug | GitHub | Status |
+|:----|:------|:-----|:-----|:-------|:------:|
+| `QNFO.GOV` | program | Portfolio Governance & Public Transparency | `governance-transparency` | `QNFO/.github` | active |
+| `QNFO.GOV.001` | project | Public Transparency Dashboard (org profile README + public Project board) | `public-transparency-dashboard` | `QNFO/.github` | active (P0) |
 
 ### Program: QNFO.SR — Silent Radix Cryptography
 
@@ -173,6 +180,7 @@ Slugs are used in:
 | Adelic Shannon Theory | `QNFO.ADL.001` | `proj-qnfo-adl-001` | `QNFO/adelic-shannon-theory` | `10.5281/zenodo.21336099` |
 | Five Pillars Synthesis | `QNFO.CON.001` | `proj-qnfo-con-001` | `QNFO/wbs-6-synthesis` | `10.5281/zenodo.21547793` |
 | Ultrametric Foundations | `QNFO.UF` | `prog-qnfo-uf` | — | `10.5281/zenodo.21046993` |
+| Portfolio Governance & Transparency | `QNFO.GOV` | `prog-qnfo-gov` | `QNFO/.github` | — |
 
 | Ultrametric Physics (consolidated) | `QNFO.UMP` | `prog-qnfo-ump` | `QNFO/ultrametric-physics` | — |
 | Laws of Form (consolidated) | `QNFO.SLB` | `prog-qnfo-slb` | `QNFO/laws-of-form` | — |
