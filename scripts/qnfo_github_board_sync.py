@@ -229,12 +229,22 @@ def main():
         raise RuntimeError("Board #%d not found" % BOARD_NUMBER)
     pid = board["id"]
 
-    d = gql('query { node(id: "%s") { ... on ProjectV2 { fields(first: 30) { nodes { ... on ProjectV2SingleSelectField { id name options { id name } } } } items(first: 100) { nodes { id content { ... on DraftIssue { id title } } } } } } }' % pid)
+    d = gql('query { node(id: "%s") { ... on ProjectV2 { fields(first: 30) { nodes { ... on ProjectV2SingleSelectField { id name options { id name } } } } } } }' % pid)
     fields = d["node"]["fields"]["nodes"]
     existing = {}
-    for it in d["node"]["items"]["nodes"]:
-        if it.get("content"):
-            existing[it["content"]["title"]] = it
+    cursor = None
+    while True:
+        after = ', after: "%s"' % cursor if cursor else ""
+        d = gql('query { node(id: "%s") { ... on ProjectV2 { items(first: 100%s) { nodes { id content { ... on DraftIssue { id title } } } pageInfo { hasNextPage endCursor } } } } }' % (pid, after))
+        page = d["node"]["items"]
+        for it in page["nodes"]:
+            if it.get("content"):
+                existing[it["content"]["title"]] = it
+        if not page["pageInfo"]["hasNextPage"]:
+            break
+        cursor = page["pageInfo"]["endCursor"]
+        if not cursor:
+            raise RuntimeError("Board items pagination stalled: hasNextPage without endCursor")
     print("[board] existing items: %d" % len(existing))
 
     def find_field(name):
