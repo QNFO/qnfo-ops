@@ -1,13 +1,16 @@
 import { connect } from "cloudflare:sockets";
-// qnfo-cloud-ops v1.2.0 — Cloud scheduler (Workers Cron Triggers)
+// qnfo-cloud-ops v1.4.0 — Cloud scheduler (Workers Cron Triggers)
 // Replaces the local DeepChat scheduled-task fleet with cloud-only execution.
 // Jobs dispatched by cron string (UTC; Amsterdam wall-clock preserved via DST sync).
-// v1.2.0: vectorized event store (OPS_VZ, doc=cloud-ops) + SILENCE POLICY — no
+// v1.4.0: zenodo-stats carries the ADR-014 attribution audit (creators + related_identifiers
+// captured per record; creator violations flagged; sole-author mandate held) and weekly-ops
+// carries SEO discoverability health (papers/qnfo/qwav/qwav.tech: status + title + JSON-LD).
+// v1.2.0+: vectorized event store (OPS_VZ, doc=cloud-ops) + SILENCE POLICY — no
 // automated email to personal inboxes except: briefing with decision items,
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.3.2";
+const VERSION = "1.4.0";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -753,6 +756,27 @@ async function jobWeeklyOps(env) {
     const z = await env.AUDIT.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(downloads),0) AS dl, COALESCE(SUM(views),0) AS vw FROM zenodo_stats").first();
     if (z) L.push("Zenodo stats table: " + z.n + " DOIs, " + z.dl + " downloads, " + z.vw + " views (cumulative).");
   } catch (e) {}
+  // ---- SEO discoverability health (v1.4.0): status + title + JSON-LD on the public surfaces
+  try {
+    const seo = [];
+    const ua = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36" };
+    for (const [name, url] of [["papers", "https://papers.qnfo.org/"], ["qnfo", "https://qnfo.org/"], ["qwav", "https://qwav.org/"], ["qwav-tech", "https://qwav.tech/"]]) {
+      try {
+        const r = await fetch(url, { headers: ua });
+        const html = await r.text();
+        const title = (html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || "";
+        const ld = html.includes("application/ld+json");
+        const ok = r.status === 200 && !!title.trim() && ld;
+        seo.push({ name, status: r.status, title: !!title.trim(), jsonld: ld, ok });
+      } catch (e) { seo.push({ name, error: String(e && e.message || e), ok: false }); }
+    }
+    const bad = seo.filter((s) => !s.ok);
+    L.push("SEO health: " + seo.map((s) => s.name + "=" + (s.ok ? "OK" : (s.status || "ERR"))).join(", "));
+    if (bad.length) {
+      L.push("SEO FAIL: " + bad.map((s) => s.name + " (" + (s.status || s.error) + (s.title === false ? " no-title" : "") + (s.jsonld === false ? " no-jsonld" : "") + ")").join("; "));
+      await recordEvent(env, "seo-fail", "seo-" + Date.now().toString(36), "SEO health failure: " + JSON.stringify(bad), { job: "weekly-ops" });
+    }
+  } catch (e) { L.push("SEO check error: " + (e && e.message)); }
   if (cost > 90) L.push("", "\u26A0 COST ALERT: est. 30d Workers AI cost $" + cost + " exceeds $90/30d spend-limit gate (rule 6f5c29f8).");
   const subject = "QNFO cloud ops audit \u2014 " + new Date().toISOString().slice(0, 10);
   const text = L.join(NL);
@@ -872,6 +896,7 @@ async function jobZenodoStats(env) {
   let fetched = 0, errors = 0;
   const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36" };
   const movers = [];
+  const auditViolations = [];
   for (const doi of todo) {
     const rid = doi.split(".").pop();
     try {
@@ -897,6 +922,19 @@ async function jobZenodoStats(env) {
       fetched++;
       const growth = rec.downloads - Number(prev.downloads || 0);
       if (growth > 0) movers.push({ doi, title: rec.title, g: growth });
+      // ---- ADR-014 attribution audit (v1.4.0): capture creators + related_identifiers,
+      // flag creator violations (sole human author = Rowan Brad Quni-Gudzinas; organizational
+      // bylines prohibited per ADR-014). obsoleted_ok is informational, not a violation.
+      try {
+        const creators = ((d.metadata || {}).creators || []).map((c) => String(c.name || "")).filter(Boolean);
+        const rels = ((d.metadata || {}).related_identifiers || []).map((r) => String((r.relation_type && (r.relation_type.id || r.relation_type)) || "").toLowerCase() + ":" + String(r.identifier || "")).join(",");
+        const creatorOk = creators.length > 0 && creators.some((n) => /Quni-Gudzinas/i.test(n));
+        const hasObsoleted = /isobsoletedby|issupersededby/i.test(rels);
+        await env.AUDIT.prepare(
+          "INSERT INTO zenodo_attribution_audit (doi, creators, related, creator_ok, obsoleted_ok, audited_at) VALUES (?1,?2,?3,?4,?5, datetime('now')) ON CONFLICT(doi) DO UPDATE SET creators=excluded.creators, related=excluded.related, creator_ok=excluded.creator_ok, obsoleted_ok=excluded.obsoleted_ok, audited_at=datetime('now')"
+        ).bind(rec.doi, creators.join("; ").slice(0, 500), rels.slice(0, 1500), creatorOk ? 1 : 0, hasObsoleted ? 1 : 0).run();
+        if (!creatorOk) auditViolations.push({ doi: rec.doi, why: "creator", creators: creators.join("; ").slice(0, 120) });
+      } catch (e) {}
     } catch (e) {
       errors++;
     }
@@ -912,8 +950,14 @@ async function jobZenodoStats(env) {
     L.push("", "top movers (downloads):");
     for (const m of movers.slice(0, 8)) L.push("- +" + m.g + "  " + m.title.slice(0, 50) + "  " + m.doi);
   }
+  if (auditViolations.length) {
+    L.push("", "ADR-014 attribution violations (" + auditViolations.length + "):");
+    for (const v of auditViolations.slice(0, 8)) L.push("- " + v.doi + " [" + v.why + "] " + v.creators);
+  } else {
+    L.push("", "ADR-014 attribution audit: 0 creator violations (sole-author mandate holds).");
+  }
   const d = await storeDigest(env, "zenodo-stats", "QNFO Zenodo stats delta \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
-  return { status: fetched > 0 || errors === 0 ? "ok" : "error", notes: { fetched, errors, corpus: Object.keys(byDoi).length, digest: d } };
+  return { status: fetched > 0 || errors === 0 ? "ok" : "error", notes: { fetched, errors, corpus: Object.keys(byDoi).length, audit_violations: auditViolations.length, digest: d } };
 }
 
 // ---------- GitHub board sync (drift report; mutations v2) ----------
