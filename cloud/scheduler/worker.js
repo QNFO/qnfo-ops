@@ -10,7 +10,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -366,7 +366,7 @@ async function jobGmailTriage(env) {
     if (!sel.ok) throw new Error("gmail SELECT INBOX failed");
     const search = await imap.cmd("UID SEARCH ALL");
     const searchLine = search.lines.find((l) => l.startsWith("* SEARCH"));
-    const uids = searchLine ? searchLine.replace("* SEARCH", "").trim().split(/\s+/).filter(Boolean).slice(0, 200) : [];
+    const uids = searchLine ? searchLine.replace("* SEARCH", "").trim().split(/\s+/).filter(Boolean).slice(0, 1000) : [];
     out.checked = uids.length;
     // create labels (idempotent; NO on exists is fine)
     for (const l of [F_WAITING, F_SOMEDAY, F_REF]) { try { await imap.cmd('CREATE "' + l + '"'); } catch (e) {} }
@@ -400,27 +400,49 @@ async function jobGmailTriage(env) {
         }
       }
     }
+    // ---- v1.5.1: grouped batched moves + deadline-aware checkpoint (red-team CONCERN B).
+    // Before: ~2 commands per message (~400+ vs 90s watchdog), hard cap 200, no resume.
+    // Now: one UID STORE/COPY per 25-UID batch; loop stops at 80s; remaining UIDs stay
+    // in INBOX so the next run resumes naturally (moved messages leave INBOX anyway).
+    const startMs = Date.now();
+    const groups = { ACTION: [], WAITING: [], SOMEDAY: [], REFERENCE: [], NOISE: [] };
     for (const p of plan) {
-      try {
-        if (p.cls === "ACTION") {
-          await imap.cmd("UID STORE " + p.uid + " +FLAGS (\\Flagged)");
-          await imap.cmd("UID STORE " + p.uid + " -FLAGS (\\Seen)");
-          continue;
-        }
-        const label = p.cls === "WAITING" ? F_WAITING : p.cls === "SOMEDAY" ? F_SOMEDAY : F_REF;
-        await imap.cmd('UID COPY ' + p.uid + ' "' + label + '"');
-        await imap.cmd("UID STORE " + p.uid + " +FLAGS (\\Deleted)");
-        out.moved++;
-      } catch (e) { /* per-message failures tolerated */ }
+      if (groups[p.cls] === undefined) groups[p.cls] = [];
+      groups[p.cls].push(p.uid);
     }
+    const deadlineHit = () => (Date.now() - startMs > 80000);
+    const applyBatch = async (uids2, label) => {
+      let timedOut = false;
+      for (let i = 0; i < uids2.length; i += 25) {
+        if (deadlineHit()) { timedOut = true; out.partial = true; break; }
+        const part = uids2.slice(i, i + 25).join(",");
+        try {
+          if (label) { try { await imap.cmd('UID COPY ' + part + ' "' + label + '"'); } catch (e) {} }
+          await imap.cmd("UID STORE " + part + " +FLAGS (\\Deleted)");
+          out.moved += Math.min(25, uids2.length - i);
+        } catch (e) { /* per-batch failures tolerated */ }
+      }
+      return timedOut;
+    };
+    // ACTION: flag + unread, stay in INBOX (batched, no \Deleted)
+    for (let i = 0; i < groups.ACTION.length; i += 25) {
+      if (deadlineHit()) { out.partial = true; break; }
+      const part = groups.ACTION.slice(i, i + 25).join(",");
+      try { await imap.cmd("UID STORE " + part + " +FLAGS (\\Flagged)"); } catch (e) {}
+      try { await imap.cmd("UID STORE " + part + " -FLAGS (\\Seen)"); } catch (e) {}
+    }
+    let timedOut = await applyBatch(groups.WAITING, F_WAITING);
+    if (!timedOut) timedOut = await applyBatch(groups.SOMEDAY, F_SOMEDAY);
+    if (!timedOut) timedOut = await applyBatch(groups.REFERENCE, F_REF);
+    if (!timedOut) timedOut = await applyBatch(groups.NOISE, null); // \Deleted only -> Trash (recoverable)
     if (out.moved > 0) { try { await imap.cmd("EXPUNGE"); } catch (e) {} }
     await imap.close();
   } catch (e) {
     if (imap) { try { await imap.close(); } catch (e2) {} }
     return { status: "error", notes: { error: String(e && e.message || e), ...out } };
   }
-  // persist state for PDB + Friday review
-  await stateSet(env, "gmail_triage_state", JSON.stringify({ ts: new Date().toISOString(), counts: out.counts, actions: out.actions.slice(0, 20), waiting: out.waiting.slice(0, 20) }));
+  // persist state for PDB + Friday review (incl. partial flag for resume observability)
+  await stateSet(env, "gmail_triage_state", JSON.stringify({ ts: new Date().toISOString(), counts: out.counts, moved: out.moved, partial: !!out.partial, actions: out.actions.slice(0, 20), waiting: out.waiting.slice(0, 20) }));
   const L = ["QNFO Gmail GTD triage \u2014 " + new Date().toISOString().slice(0, 10), ""];
   L.push("INBOX " + out.checked + " msgs: " + JSON.stringify(out.counts) + " moved=" + out.moved + ".");
   if (out.actions.length) { L.push("", "ACTION (stay in INBOX):"); for (const a of out.actions.slice(0, 10)) L.push("- " + a.sender + " | " + a.subject); }
