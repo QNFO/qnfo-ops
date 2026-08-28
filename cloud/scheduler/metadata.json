@@ -12,6 +12,7 @@
     {"type": "service", "name": "QNFO_INFRA", "service": "qnfo-infra", "environment": "production"},
     {"type": "send_email", "name": "SEND_EMAIL"},
     {"type": "r2_bucket", "name": "VAULT", "bucket_name": "d-drive"},
-    {"type": "ai", "name": "AI"}
+    {"type": "ai", "name": "AI"},
+    {"type": "vectorize", "name": "OPS_VZ", "index_name": "qnfo-cloud-ops"}
   ]
 }
