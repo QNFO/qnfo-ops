@@ -7,7 +7,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -445,6 +445,23 @@ async function jobEmailTriage(env) {
   for (const e of noise) {
     try { await cfEmail(env, "/emails/status", { method: "PATCH", body: { id: e.id, status: "spam" } }); } catch (err) {}
   }
+  // ---- outreach reply detection (v1.3.1): an inbound email from a contacted address
+  // marks that outreach_log row 'replied' so follow-ups skip it. Deterministic, idempotent.
+  try {
+    const contacted = await env.AUDIT.prepare("SELECT DISTINCT lower(email) AS em FROM outreach_log WHERE status IN ('sent','followup')").all();
+    const set = new Set((contacted.results || []).map((r) => r.em).filter(Boolean));
+    if (set.size) {
+      const inbound = await env.AUDIT.prepare("SELECT id, sender FROM emails WHERE status IN ('processed','read') AND received_at > datetime('now','-30 days')").all();
+      for (const row of inbound.results || []) {
+        const s = String(row.sender || "").toLowerCase();
+        const m = s.match(/<([^>]+)>/);
+        const addr = m ? m[1] : s.trim();
+        if (addr && set.has(addr)) {
+          await env.AUDIT.prepare("UPDATE outreach_log SET status='replied' WHERE lower(email)=?1 AND status IN ('sent','followup')").bind(addr).run();
+        }
+      }
+    }
+  } catch (e) {}
   const L = ["QNFO email triage \u2014 " + new Date().toISOString().slice(0, 10), ""];
   L.push("Checked " + emails.length + " processed emails: " + action.length + " actionable, " + noise.length + " noise (marked spam).");
   if (action.length) {
@@ -1008,7 +1025,7 @@ async function verifyArxivEmail(env, paperId) {
 }
 
 async function jobOutreach(env) {
-  const out = { pending: 0, sent: 0, skipped_no_email: 0, skipped_dupe: 0, errors: [] };
+  const out = { pending: 0, sent: 0, followups: 0, skipped_no_email: 0, skipped_dupe: 0, errors: [] };
   if (!env.SEND_EMAIL) return { status: "error", notes: { error: "SEND_EMAIL binding missing" } };
   const today = new Date().toISOString().slice(0, 10);
   const sentKey = "outreach_sent_" + today;
@@ -1056,6 +1073,39 @@ async function jobOutreach(env) {
     } catch (e) {
       out.errors.push({ id: r.id, error: String(e && e.message || e) });
     }
+  }
+  // ---- follow-up pass (v1.3.1): one follow-up, 14+ days after a send with no reply,
+  // never a second follow-up, shared daily cap.
+  if (sentToday < CAP) {
+    try {
+      const fu = await env.AUDIT.prepare(
+        "SELECT email, subject FROM outreach_log WHERE status='sent' AND sent_at < datetime('now','-14 days') " +
+        "AND email NOT IN (SELECT email FROM outreach_log WHERE status IN ('replied','followup')) " +
+        "ORDER BY sent_at ASC LIMIT 3"
+      ).all();
+      for (const f of fu.results || []) {
+        if (sentToday >= CAP) break;
+        try {
+          const subject = "Re: " + String(f.subject || "").replace(/^Re:\s*/i, "");
+          const body = [
+            "Hello,",
+            "",
+            "Following up on my earlier note about the energy-efficiency benchmark for quantum computing \u2014 I would still welcome a brief exchange if you are open to it.",
+            "",
+            "Best regards,",
+            "Rowan Brad Quni-Gudzinas",
+            "QNFO",
+          ].join("\n");
+          const res = await env.SEND_EMAIL.send({ to: f.email, from: OUTREACH_FROM, subject, text: body });
+          await env.AUDIT.prepare("INSERT INTO outreach_log (email, subject, message_id, sent_at, status) VALUES (?1,?2,?3, datetime('now'), 'followup')").bind(f.email, subject, (res && res.messageId) || "").run();
+          sentToday++;
+          await stateSet(env, sentKey, String(sentToday));
+          out.followups++;
+        } catch (e) {
+          out.errors.push({ id: "fu-" + f.email, error: String(e && e.message || e) });
+        }
+      }
+    } catch (e) {}
   }
   await recordEvent(env, "job-run", "jr-outreach-" + Date.now().toString(36), "outreach run: " + JSON.stringify(out), { job: "outreach", status: out.errors.length ? "partial" : "ok" });
   return { status: out.errors.length ? "error" : "ok", notes: out };
