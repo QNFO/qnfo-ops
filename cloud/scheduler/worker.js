@@ -7,7 +7,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -211,9 +211,9 @@ async function syncSchedules(env, force) {
 function decodeHeader(s) {
   // RFC 2047 =?charset?B?base64?= / =?charset?Q?quoted?=
   let out = String(s || "");
-  out = out.replace(/=\?([^?]+)\?[BQbq]\?([^?]*)\?=/g, (m, cs, data) => {
+  out = out.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (m, cs, enc, data) => {
     try {
-      if (/^B$/i.test(m.slice(m.indexOf("?") + 1, m.indexOf("?") + 2))) {
+      if (/b/i.test(enc)) {
         return decodeURIComponent(escape(atob(data.replace(/\s/g, ""))));
       }
       return decodeURIComponent(data.replace(/_/g, " ").replace(/=([0-9A-Fa-f]{2})/g, (mm, hx) => String.fromCharCode(parseInt(hx, 16))));
