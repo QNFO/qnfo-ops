@@ -1,10 +1,14 @@
 import { connect } from "cloudflare:sockets";
-// qnfo-cloud-ops v1.1.0 — Cloud scheduler (Workers Cron Triggers)
+// qnfo-cloud-ops v1.2.0 — Cloud scheduler (Workers Cron Triggers)
 // Replaces the local DeepChat scheduled-task fleet with cloud-only execution.
 // Jobs dispatched by cron string (UTC; Amsterdam wall-clock preserved via DST sync).
+// v1.2.0: vectorized event store (OPS_VZ, doc=cloud-ops) + SILENCE POLICY — no
+// automated email to personal inboxes except: briefing with decision items,
+// job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
+const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
 const EMAIL_BASE = "https://qnfo-email.internal";
@@ -61,6 +65,36 @@ async function sendDigest(env, subject, text) {
   } catch (e) {
     return { error: String(e && e.message || e), to };
   }
+}
+
+// ---------- vectorized event store (OPS_VZ) + silent digest ----------
+async function embedText(env, text) {
+  try {
+    const resp = await env.AI.run(EMBED_MODEL, { text: [String(text).slice(0, 1800)] }, { gateway: { id: "default" } });
+    const v = (resp && resp.data || []).find((x) => Array.isArray(x) && x.length === 768);
+    return v || null;
+  } catch (e) { return null; }
+}
+
+async function recordEvent(env, kind, id, text, meta) {
+  const m = Object.assign({}, meta || {});
+  try {
+    await env.AUDIT.prepare("INSERT INTO cloud_ops_events (id, ts, kind, text, meta, job, status) VALUES (?1,?2,?3,?4,?5,?6,?7)")
+      .bind(id, new Date().toISOString(), kind, String(text).slice(0, 2000), JSON.stringify(m).slice(0, 1500), m.job || null, m.status || null).run();
+  } catch (e) {}
+  try {
+    if (env.OPS_VZ) {
+      const v = await embedText(env, kind + ": " + text);
+      if (v) {
+        await env.OPS_VZ.upsert([{ id, values: v, metadata: { doc: "cloud-ops", kind, ts: new Date().toISOString(), text: String(text).slice(0, 1500), ...m } }]);
+      }
+    }
+  } catch (e) {}
+  return { stored: true, id };
+}
+
+async function storeDigest(env, job, subject, text) {
+  return recordEvent(env, "digest", "dg-" + job + "-" + Date.now().toString(36), subject + NL + text, { job });
 }
 
 // ---------- qnfo-email service ----------
@@ -388,7 +422,7 @@ async function jobGmailTriage(env) {
   if (out.actions.length) { L.push("", "ACTION (stay in INBOX):"); for (const a of out.actions.slice(0, 10)) L.push("- " + a.sender + " | " + a.subject); }
   if (out.waiting.length) { L.push("", "WAITING:"); for (const w of out.waiting.slice(0, 5)) L.push("- " + w.sender + " | " + w.subject); }
   if (!out.actions.length && !out.waiting.length) L.push("", "No actionable inbox mail.");
-  const d = await sendDigest(env, "QNFO Gmail GTD triage \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const d = await storeDigest(env, "gmail-triage", "QNFO Gmail GTD triage \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: "ok", notes: { ...out, digest: d } };
 }
 
@@ -420,7 +454,7 @@ async function jobEmailTriage(env) {
   } else {
     L.push("", "No actionable inbound email.");
   }
-  const d = await sendDigest(env, "QNFO email triage \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const d = await storeDigest(env, "email-triage", "QNFO email triage \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: "ok", notes: { checked: emails.length, actionable: action.length, noise: noise.length, digest: d } };
 }
 
@@ -499,11 +533,13 @@ async function jobResearchScan(env) {
     try {
       await env.AUDIT.prepare("INSERT INTO gtd_register (section, line, done, line_date, source, updated_at) VALUES (?1,?2,0,?3,?4, datetime('now'))").bind("NEXT STEPS", text, date, "research-scan").run();
       addedLines.push({ date, text });
+      await recordEvent(env, "gtd-line", "gtd-" + date + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), date + " \u2014 " + text, { job: "research-scan" });
     } catch (e) {}
   }
   for (const oc of (extracted.outreach || []).slice(0, 4)) {
     try {
       await env.AUDIT.prepare("INSERT INTO outreach_queue (id, paper_id, author, email, reason, status, created_at) VALUES (?1,?2,?3,NULL,?4,'pending', datetime('now'))").bind("oq-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), String(oc.paper_id || "").slice(0, 40), "", String(oc.reason || "").slice(0, 300)).run();
+      await recordEvent(env, "outreach", "oq-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), String(oc.paper_id || "") + " \u2014 " + String(oc.reason || "").slice(0, 300), { job: "research-scan" });
     } catch (e) {}
   }
   for (const mr of (extracted.must_read || []).slice(0, 3)) {
@@ -523,7 +559,7 @@ async function jobResearchScan(env) {
   L.push("GTD actions extracted: " + addedLines.length + " register lines, " + (extracted.outreach || []).length + " outreach candidates, " + (extracted.must_read || []).length + " must-reads.");
   if (extracted.error) L.push("AI extraction: " + extracted.error);
   if (!addedLines.length && !(extracted.outreach || []).length && !(extracted.must_read || []).length) L.push("No actionable items today.");
-  const d = await sendDigest(env, "QNFO research scan \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const d = await storeDigest(env, "research-scan", "QNFO research scan \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: "ok", notes: { hits: real.length, added_lines: addedLines.length, outreach: (extracted.outreach || []).length, must_read: (extracted.must_read || []).length, digest: d } };
 }
 
@@ -599,7 +635,10 @@ async function jobBriefing(env) {
   } catch (e) {}
 
   if (!items) L.push("No decision items.");
-  const d = await sendDigest(env, "QNFO briefing \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const subject = "QNFO briefing \u2014 " + new Date().toISOString().slice(0, 10);
+  const text = L.join(NL);
+  // SILENCE POLICY: the personal inbox gets the briefing ONLY when there are decision items.
+  const d = items > 0 ? await sendDigest(env, subject, text) : await storeDigest(env, "briefing", subject, text);
   return { status: "ok", notes: { items, digest: d } };
 }
 
@@ -655,7 +694,7 @@ async function jobWeekly(env) {
       if (j && j.papers != null) L.push("Records: papers " + j.papers + ", KG " + (j.kg && j.kg.nodes || "?") + " nodes");
     }
   } catch (err) {}
-  const d = await sendDigest(env, "QNFO weekly summary \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const d = await storeDigest(env, "weekly", "QNFO weekly summary \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: "ok", notes: { digest: d } };
 }
 
@@ -695,7 +734,11 @@ async function jobWeeklyOps(env) {
     if (z) L.push("Zenodo stats table: " + z.n + " DOIs, " + z.dl + " downloads, " + z.vw + " views (cumulative).");
   } catch (e) {}
   if (cost > 90) L.push("", "\u26A0 COST ALERT: est. 30d Workers AI cost $" + cost + " exceeds $90/30d spend-limit gate (rule 6f5c29f8).");
-  const d = await sendDigest(env, "QNFO cloud ops audit \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const subject = "QNFO cloud ops audit \u2014 " + new Date().toISOString().slice(0, 10);
+  const text = L.join(NL);
+  const alert = cost > 90 || (dst.changed && !dst.ok);
+  // SILENCE POLICY: email only on cost alert or a failed DST schedule rebuild.
+  const d = alert ? await sendDigest(env, subject, text) : await storeDigest(env, "weekly-ops", subject, text);
   return { status: "ok", notes: { est_cost_30d: cost, dst: dst.changed, digest: d } };
 }
 
@@ -762,7 +805,8 @@ async function jobPortfolioSync(env) {
     try { curText = atob(cur.body.content.replace(/\s/g, "")); } catch (e) { curText = ""; }
   }
   if (curText === md) {
-    return { status: "ok", notes: { drift: false, ...out, digest: { error: "no drift \u2014 skipped PR (silent)" } } };
+    await storeDigest(env, "portfolio-sync", "QNFO portfolio sync \u2014 " + now.slice(0, 10), "No drift \u2014 skipped PR (silent).");
+    return { status: "ok", notes: { drift: false, ...out, digest: { stored: true } } };
   }
   // main sha
   const mainRef = await ghGet(env, "/repos/QNFO/.github/git/ref/heads/main");
@@ -783,6 +827,7 @@ async function jobPortfolioSync(env) {
     const mg = await ghPut(env, "/repos/QNFO/.github/pulls/" + prNum + "/merge", { merge_method: "squash" });
     if (mg.status !== 200) return { status: "error", notes: { error: "merge failed " + mg.status, pr: prNum, ...out } };
   }
+  await storeDigest(env, "portfolio-sync", "QNFO portfolio sync \u2014 " + now.slice(0, 10), "Drift applied via PR #" + (prNum || "?") + ". " + JSON.stringify(out));
   return { status: "ok", notes: { drift: true, pr: prNum, ...out } };
 }
 
@@ -847,7 +892,7 @@ async function jobZenodoStats(env) {
     L.push("", "top movers (downloads):");
     for (const m of movers.slice(0, 8)) L.push("- +" + m.g + "  " + m.title.slice(0, 50) + "  " + m.doi);
   }
-  const d = await sendDigest(env, "QNFO Zenodo stats delta \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const d = await storeDigest(env, "zenodo-stats", "QNFO Zenodo stats delta \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: fetched > 0 || errors === 0 ? "ok" : "error", notes: { fetched, errors, corpus: Object.keys(byDoi).length, digest: d } };
 }
 
@@ -870,7 +915,7 @@ async function jobBoardSync(env) {
   L.push("Canonical: " + out.programs + " registry rows, " + out.kgProjects + " KG program/project/task nodes.");
   L.push("Public board #7 items: " + (boardItems === null ? "unknown" : boardItems) + (gqlError ? " (GraphQL: " + gqlError + ")" : "") + ".");
   L.push("Drift mutations: v2 (report-only today; idempotent upsert by WBS code is the v2 path).");
-  const d = await sendDigest(env, "QNFO GitHub board sync \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  const d = await storeDigest(env, "board-sync", "QNFO GitHub board sync \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: "ok", notes: { ...out, gqlError, digest: d } };
 }
 
@@ -896,8 +941,38 @@ async function jobNlnet(env) {
   } catch (e) { formResult = "page fetch error: " + e.message; }
   L.push("Submission: " + formResult + ".");
   L.push("Next step: user-submitted form at https://nlnet.nl/propose/ with the prepared bundle (deadline Nov 3 2026 12:00 CEST).");
+  await storeDigest(env, "nlnet", "QNFO NLnet NGI Zero submission \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
+  // one-shot: this single email IS an action item (user must submit the form).
   const d = await sendDigest(env, "QNFO NLnet NGI Zero submission \u2014 " + new Date().toISOString().slice(0, 10), L.join(NL));
   return { status: "ok", notes: { formResult, digest: d } };
+}
+
+// ---------- backfill: embed existing D1 rows into OPS_VZ (one-off; run via /run?job=backfill) ----------
+async function jobBackfill(env) {
+  const out = { contacts: 0, gtd: 0, outreach: 0 };
+  try {
+    const c = await env.AUDIT.prepare("SELECT email, name FROM contact_ledger LIMIT 500").all();
+    for (const r of c.results || []) {
+      await recordEvent(env, "contact", "ct-" + String(r.email).replace(/[^a-z0-9.@_-]/gi, ""), (r.name || "?") + " <" + r.email + ">", { job: "backfill" });
+      out.contacts++;
+    }
+  } catch (e) { out.contacts = -1; }
+  try {
+    const g = await env.AUDIT.prepare("SELECT id, line, line_date FROM gtd_register LIMIT 500").all();
+    for (const r of g.results || []) {
+      await recordEvent(env, "gtd-line", "gtd-bf-" + r.id, (r.line_date || "") + " \u2014 " + r.line, { job: "backfill" });
+      out.gtd++;
+    }
+  } catch (e) { out.gtd = -1; }
+  try {
+    const o = await env.AUDIT.prepare("SELECT id, paper_id, reason, status FROM outreach_queue LIMIT 200").all();
+    for (const r of o.results || []) {
+      await recordEvent(env, "outreach", "oq-bf-" + r.id, (r.paper_id || "") + " \u2014 " + (r.reason || "") + " [" + (r.status || "") + "]", { job: "backfill" });
+      out.outreach++;
+    }
+  } catch (e) { out.outreach = -1; }
+  await recordEvent(env, "job-run", "jr-backfill-" + Date.now().toString(36), "backfill completed: " + JSON.stringify(out), { job: "backfill", status: "ok" });
+  return { status: "ok", notes: out };
 }
 
 // ================= PART 5: registry + dispatch + handlers =================
@@ -914,6 +989,7 @@ const JOBS = {
   "board-sync": jobBoardSync,
   "release-check": jobReleaseCheck,
   "nlnet": jobNlnet,
+  "backfill": jobBackfill,
 };
 
 // cron -> job dispatch map for a given Amsterdam offset
@@ -942,9 +1018,11 @@ export default {
     try {
       const out = await JOBS[job](env);
       await logRun(env, job, out.status, out.notes || {});
+      await recordEvent(env, "job-run", "jr-" + job + "-" + Date.now().toString(36), job + " " + out.status + " " + JSON.stringify(out.notes || {}).slice(0, 300), { job, status: out.status });
       console.log("cloud-ops", job, out.status, JSON.stringify(out.notes || {}).slice(0, 200));
     } catch (e) {
       await logRun(env, job, "error", { error: String(e && e.message || e) });
+      await recordEvent(env, "job-run", "jr-" + job + "-" + Date.now().toString(36), job + " error " + String(e && e.message || e), { job, status: "error" });
       console.error("cloud-ops", job, "error", String(e && e.message || e));
       try {
         await sendDigest(env, "QNFO cloud job failure \u2014 " + job, "Job " + job + " failed: " + String(e && e.message || e));
@@ -968,7 +1046,7 @@ export default {
         bindings: {
           audit: !!env.AUDIT, portfolio: !!env.PORTFOLIO, living: !!env.LIVING, graph: !!env.GRAPH,
           email: !!env.EMAIL, email_key: !!env.EMAIL_API_KEY, qnfo_infra: !!env.QNFO_INFRA,
-          send_email: !!env.SEND_EMAIL, vault: !!env.VAULT, ai: !!env.AI,
+          send_email: !!env.SEND_EMAIL, vault: !!env.VAULT, ai: !!env.AI, ops_vz: !!env.OPS_VZ,
           secrets: { gh: !!env.GH_TOKEN, gmail: !!env.GMAIL_PASS, cf: !!env.CF_TOKEN, admin: !!env.OPS_ADMIN_TOKEN, infra_token: !!env.INFRA_TOKEN }
         }
       }), { headers: { "Content-Type": "application/json", ...CORS } });
@@ -983,9 +1061,28 @@ export default {
       try {
         const out = await JOBS[job](env);
         await logRun(env, job, out.status, out.notes || {});
+        await recordEvent(env, "job-run", "jr-" + job + "-" + Date.now().toString(36), job + " " + out.status + " " + JSON.stringify(out.notes || {}).slice(0, 300), { job, status: out.status });
         return new Response(JSON.stringify({ ok: true, job, ...out }), { headers: { "Content-Type": "application/json", ...CORS } });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, job, error: String(e && e.message || e) }), { status: 500, headers: { "Content-Type": "application/json", ...CORS } });
+      }
+    }
+
+    if (path === "/search" && request.method === "GET") {
+      const q = (url.searchParams.get("q") || "").trim();
+      if (!q) return new Response(JSON.stringify({ error: "q required" }), { status: 400, headers: { "Content-Type": "application/json", ...CORS } });
+      const vec = await embedText(env, q);
+      if (!vec) return new Response(JSON.stringify({ error: "embedding failed" }), { status: 502, headers: { "Content-Type": "application/json", ...CORS } });
+      const k = Math.min(Math.max(parseInt(url.searchParams.get("k") || "8", 10) || 8, 1), 20);
+      try {
+        const r = await env.OPS_VZ.query(vec, { topK: k, returnValues: false, returnMetadata: "all" });
+        const hits = (r.matches || []).map((m) => {
+          const md = m.metadata || {};
+          return { id: m.id, score: Math.round((m.score || 0) * 1e4) / 1e4, kind: md.kind, ts: md.ts, job: md.job, status: md.status, text: md.text || "" };
+        });
+        return new Response(JSON.stringify({ ok: true, query: q, count: hits.length, hits }), { headers: { "Content-Type": "application/json", ...CORS } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "search failed: " + String(e && e.message || e) }), { status: 500, headers: { "Content-Type": "application/json", ...CORS } });
       }
     }
 
