@@ -7,7 +7,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -56,9 +56,9 @@ async function stateSet(env, key, value) {
 }
 
 // ---------- email digest ----------
-async function sendDigest(env, subject, text) {
+async function sendDigest(env, subject, text, toOverride) {
   if (!env.SEND_EMAIL) return { error: "SEND_EMAIL binding missing" };
-  const to = env.DIGEST_TO || "rwnquni@outlook.com";
+  const to = toOverride || env.DIGEST_TO || "rwnquni@outlook.com";
   try {
     const r = await env.SEND_EMAIL.send({ to, from: { email: "alerts@qnfo.org", name: "QNFO Ops" }, subject, text });
     return { ok: true, messageId: r && r.messageId, to };
@@ -152,6 +152,7 @@ const AMS_SCHEDULE = {
   "portfolio-sync": { times: ["08:00"], days: "1",   fixed: null },
   "zenodo-stats":   { times: ["09:00"], days: "7",   fixed: null },
   "board-sync":     { times: ["08:00"], days: "6",   fixed: null },
+  "outreach":       { times: ["11:00"], days: "1-5", fixed: null },
   "nlnet":          { times: ["11:00"], days: null,  fixed: { dom: 3, mon: 9 } },
 };
 
@@ -638,7 +639,9 @@ async function jobBriefing(env) {
   const subject = "QNFO briefing \u2014 " + new Date().toISOString().slice(0, 10);
   const text = L.join(NL);
   // SILENCE POLICY: the personal inbox gets the briefing ONLY when there are decision items.
-  const d = items > 0 ? await sendDigest(env, subject, text) : await storeDigest(env, "briefing", subject, text);
+  // A briefing with items requires clear-and-present attention (user directive 2026-08-28),
+  // so it overrides DIGEST_TO (alerts@qnfo.org) to the personal inbox; everything else stays archived.
+  const d = items > 0 ? await sendDigest(env, subject, text, "rwnquni@outlook.com") : await storeDigest(env, "briefing", subject, text);
   return { status: "ok", notes: { items, digest: d } };
 }
 
@@ -975,6 +978,89 @@ async function jobBackfill(env) {
   return { status: "ok", notes: out };
 }
 
+// ---------- outreach engine v1: queue -> verify (arXiv tarball) -> dedup -> send -> log ----------
+const OUTREACH_FROM = { email: "rowan.quni@qnfo.org", name: "Rowan Brad Quni-Gudzinas" };
+
+async function verifyArxivEmail(env, paperId) {
+  const id = String(paperId || "").trim().replace(/^arXiv:/i, "").replace(/v\d+$/, "");
+  if (!/^\d{4}\.\d{4,5}$/.test(id)) return null;
+  try {
+    const r = await fetch("https://export.arxiv.org/e-print/" + id, { headers: { "User-Agent": "Mozilla/5.0 (QNFO cloud ops)" } });
+    if (!r.ok) return null;
+    const buf = await r.arrayBuffer();
+    let text = "";
+    try {
+      const ds = new DecompressionStream("gzip");
+      const stream = new Blob([buf]).stream().pipeThrough(ds);
+      const reader = stream.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        text += new TextDecoder().decode(value);
+        if (text.length > 5000000) break; // arXiv sources can be large; emails live in the .tex (anywhere in the tar)
+      }
+    } catch (e) { text = new TextDecoder().decode(buf); }
+    const m = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
+    const junk = /noreply|no-reply|example|\.png|\.jpg|\.gif|arxiv|elsevier|springer|overleaf|latex|biblatex|hyperref/i;
+    for (const em of m) if (!junk.test(em) && em.length < 80) return em;
+    return null;
+  } catch (e) { return null; }
+}
+
+async function jobOutreach(env) {
+  const out = { pending: 0, sent: 0, skipped_no_email: 0, skipped_dupe: 0, errors: [] };
+  if (!env.SEND_EMAIL) return { status: "error", notes: { error: "SEND_EMAIL binding missing" } };
+  const today = new Date().toISOString().slice(0, 10);
+  const sentKey = "outreach_sent_" + today;
+  let sentToday = Number(await stateGet(env, sentKey, "0")) || 0;
+  const CAP = 3;
+  let rows;
+  try {
+    rows = await env.AUDIT.prepare("SELECT id, paper_id, author, email, reason FROM outreach_queue WHERE status='pending' ORDER BY created_at ASC LIMIT 10").all();
+  } catch (e) { return { status: "error", notes: { error: String(e && e.message || e) } }; }
+  const pending = (rows.results || []).filter((r) => r.email || r.paper_id);
+  out.pending = pending.length;
+  for (const r of pending) {
+    if (sentToday >= CAP) { out.errors.push({ id: r.id, error: "daily cap reached" }); break; }
+    let email = r.email || null;
+    try {
+      if (!email) {
+        email = await verifyArxivEmail(env, r.paper_id);
+        if (!email) { out.skipped_no_email++; continue; }
+        await env.AUDIT.prepare("UPDATE outreach_queue SET email=?1 WHERE id=?2").bind(email, r.id).run();
+      }
+      const dup = await env.AUDIT.prepare("SELECT 1 AS x FROM contact_ledger WHERE email=?1 UNION ALL SELECT 1 AS x FROM outreach_log WHERE email=?1 LIMIT 1").bind(email).first();
+      if (dup) { out.skipped_dupe++; continue; }
+      const subject = "QNFO \u2014 the energy-efficiency benchmark for quantum computing";
+      const body = [
+        "Hello,",
+        "",
+        "I am Rowan Brad Quni-Gudzinas, founder of QNFO, a research collective working on an open, reproducible, energy-first standard for quantum computing: the JPCub benchmark \u2014 \u201cwhat does a correct quantum answer cost in energy?\u201d (grounded in Landauer, Margolus\u2013Levitin, and Bremermann limits).",
+        "",
+        r.paper_id ? "I came across your recent work (arXiv " + r.paper_id + (r.reason ? " \u2014 " + r.reason : "") + ") and it looks directly relevant to this program." : "I came across your recent work and it looks directly relevant to this program.",
+        "",
+        "Would you be open to a brief exchange on how your results relate to energy accounting for quantum computation? Happy to share our working papers and benchmark definitions.",
+        "",
+        "Best regards,",
+        "Rowan Brad Quni-Gudzinas",
+        "QNFO",
+      ].join("\n");
+      const res = await env.SEND_EMAIL.send({ to: email, from: OUTREACH_FROM, subject, text: body });
+      await env.AUDIT.prepare("INSERT INTO outreach_log (email, subject, message_id, sent_at, status) VALUES (?1,?2,?3, datetime('now'), 'sent')").bind(email, subject, (res && res.messageId) || "").run();
+      await env.AUDIT.prepare("INSERT INTO contact_ledger (email, name, first_contact, last_contact, contact_count, status) VALUES (?1,?2,?3,?3,1,'outreach') ON CONFLICT(email) DO UPDATE SET last_contact=excluded.last_contact, contact_count=contact_count+1").bind(email, r.author || null, today).run();
+      await env.AUDIT.prepare("UPDATE outreach_queue SET status='sent', sent_at=datetime('now') WHERE id=?1").bind(r.id).run();
+      await recordEvent(env, "outreach", "oq-sent-" + Date.now().toString(36), "outreach sent to " + email + " re " + (r.paper_id || ""), { job: "outreach", email });
+      sentToday++;
+      await stateSet(env, sentKey, String(sentToday));
+      out.sent++;
+    } catch (e) {
+      out.errors.push({ id: r.id, error: String(e && e.message || e) });
+    }
+  }
+  await recordEvent(env, "job-run", "jr-outreach-" + Date.now().toString(36), "outreach run: " + JSON.stringify(out), { job: "outreach", status: out.errors.length ? "partial" : "ok" });
+  return { status: out.errors.length ? "error" : "ok", notes: out };
+}
+
 // ================= PART 5: registry + dispatch + handlers =================
 
 const JOBS = {
@@ -989,6 +1075,7 @@ const JOBS = {
   "board-sync": jobBoardSync,
   "release-check": jobReleaseCheck,
   "nlnet": jobNlnet,
+  "outreach": jobOutreach,
   "backfill": jobBackfill,
 };
 
