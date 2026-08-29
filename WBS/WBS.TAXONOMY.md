@@ -135,6 +135,15 @@ No projects registered yet. Papers are tracked as KG Paper nodes under this prog
 | `QNFO.SLB.001` | project | The Idempotent Core: Quantity as Broken Distinction | `idempotent-core` | `QNFO/laws-of-form` | active (P4) |
 | `QNFO.SLB.002` | project | The Void Is Not False | `void-is-not-false` | `QNFO/laws-of-form` | active (P4) |
 
+### Program: QNFO.RES — QNFO Research Archive
+
+Full registry lives in D1 `program_registry`; this table tracks the framework records added after
+the 2026-08-04 consolidation.
+
+| WBS | Level | Name | Slug | GitHub | Status |
+|:----|:------|:-----|:-----|:-------|:------:|
+| `QNFO.RES.032` | project | Distinction-Primitive Research Framework (DPRF) | `distinction-primitive-research-framework` | `QNFO/qnfo-research` | active (P0) |
+
 ---
 
 ## §4 Version Tag Convention
