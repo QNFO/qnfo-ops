@@ -1,7 +1,7 @@
 # PLCY — Map–Territory Realization Gate & Ontic Gate (DPRF G1/G2)
 
 **Authority:** enacted by QNFO.RES.032 (Distinction-Primitive Research Framework) P0, 2026-08-29,
-under ADR-2026-007 governance · **Scope:** all QNFO/QWAV research programs
+under ADR-2026-007 governance as cited by the WBS docs (ADR full text not located in cloned repos — P0.1 R11; provisional until located) · **Scope:** all QNFO/QWAV research programs (provisional)
 **Source record:** QNFO/qnfo-research, branch res/paper/distinction-primitive-research-framework,
 FRAMEWORK.md (v0.1)
 
@@ -41,7 +41,7 @@ from `map` to `territory` only through a declared `bridge` carrying, all pre-spe
 3. **falsification condition** — the observation that would refute the claim.
 
 A claim without the triple is demoted: `territory` → `bridge`, `bridge` → `map`. A `map` carries
-no empirical force and must not be worded as if it did.
+no empirical force and must not be worded as if it did. Missing only the null model or only the falsifier → demote one rung; dual G1+G2 violations → both demotions apply, lower class wins (P0.1 R9).
 
 ## 4. Reporting rules (inherited from RES.030 Ch. 9–11 discipline)
 
@@ -65,7 +65,7 @@ no empirical force and must not be worded as if it did.
 - **P1** due diligence: corpus hits tagged with the DPRF level legend (T-2).
 - **P4** red team: standing adversary positions = the four defect classes.
 - **P5** publication gates: GATE-ONTIC-1 and GATE-REALIZATION-1 appended to the existing gate set
-  (worked precedent: RES.030's MAP-TERRITORY gate).
+  (worked precedents: UMP.014's map-territory clause (red-team round 3) and RES.030's matched-density null discipline).
 - **Audit**: the four defect classes join the anti-pattern register.
 
 ## 7. Non-goals

@@ -253,3 +253,7 @@ After executing any WBS-coded plan step, verify:
 | Project name mismatch (ad-hoc vs canonical) | Use D1 slug as canonical; rename repos if needed |
 | Version update without propagation check | Run KG impact analysis → flag dependents |
 | Phantom claim of "stored" without D1 re-query | Re-SELECT after INSERT (knowledge skill v2.1 mandate) |
+| Level leakage (DPRF LEAK-X-Y — QNFO.RES.032) | Declare intermediate bridges or demote level (PLCY/MAP-TERRITORY-REALIZATION-GATE.md §5) |
+| Ontology smuggling (DPRF ONTIC-SMUGGLE) | Declare ontic commitment or rewrite as methodological |
+| Map-as-territory (DPRF MAP-AS-TERRITORY) | Supply G2 triple (protocol/null/falsifier) or demote to map |
+| Object conflation (DPRF OBJ-CONFLATE) | Separate the objects (primes vs zeros; two-point vs one-point) |

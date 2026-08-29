@@ -1,7 +1,7 @@
 # WBS.TAXONOMY — Canonical Program/Project Registry
 
 **Authority:** ADR-2026-007  
-**Last Updated:** 2026-08-13  
+**Last Updated:** 2026-08-29  
 **Source of Truth:** D1 `portfolio-state.program_registry` + KG nodes (label=Program/Project)
 
 ---
