@@ -1245,26 +1245,30 @@ async function jobOutreach(env) {
 
 // ---------- AI endpoint health (every 30 min) ----------
 async function jobWorkerHealth(env) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
   const endpoints = [
-    { worker: "qnfo-ai",        url: "https://qnfo-ai.q08.workers.dev/health",        headers: {} },
-    { worker: "personal-api",   url: "https://personal-api.q08.workers.dev/health",   headers: {} },
-    { worker: "qnfo-idea-factory", url: "https://ideas.qnfo.org/health",              headers: {} },
-    { worker: "qnfo-ai-chat",   url: "https://qnfo-ai.q08.workers.dev/v1/chat/completions", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (env.ROUTER_AUTH_KEY || "") }, body: { model: "deepseek-v4-flash", messages: [{ role: "user", content: "ping" }], max_tokens: 5 } },
-    { worker: "personal-api-chat", url: "https://personal-api.q08.workers.dev/v1/chat/completions", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (env.PL_API_KEY || "") }, body: { model: "personal-twin-chat", messages: [{ role: "user", content: "ping" }], max_tokens: 5 } }
+    { worker: "qnfo-ai",        binding: "QNFO_AI", url: "https://qnfo-ai.internal/health",               headers: { "User-Agent": UA } },
+    { worker: "personal-api",   binding: "PERSONAL_API", url: "https://personal-api.internal/health",      headers: { "User-Agent": UA } },
+    { worker: "qnfo-idea-factory", url: "https://ideas.qnfo.org/health",              headers: { "User-Agent": UA } },
+    { worker: "qnfo-ai-chat",   binding: "QNFO_AI", url: "https://qnfo-ai.internal/v1/chat/completions",  headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (env.ROUTER_AUTH_KEY || ""), "User-Agent": UA }, body: { model: "deepseek-v4-flash", messages: [{ role: "user", content: "ping" }], max_tokens: 5 } },
+    { worker: "personal-api-chat", binding: "PERSONAL_API", url: "https://personal-api.internal/v1/chat/completions", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (env.PL_API_KEY || ""), "User-Agent": UA }, body: { model: "personal-twin-chat", messages: [{ role: "user", content: "ping" }], max_tokens: 5 } }
   ];
   const out = { checks: [], failed: [] };
   const now = new Date().toISOString();
   for (const ep of endpoints) {
     const t0 = Date.now();
-    let status = 0, dur = 0, error = "";
+    let status = 0, dur = 0, error = "", body = "";
     try {
-      const resp = await fetch(ep.url, { method: ep.body ? "POST" : "GET", headers: ep.headers || {}, body: ep.body ? JSON.stringify(ep.body) : undefined, signal: AbortSignal.timeout(45000) });
+      const fetcher = ep.binding && env[ep.binding] && env[ep.binding].fetch
+        ? (u, o) => env[ep.binding].fetch(u, o)
+        : (u, o) => fetch(u, o);
+      const resp = await fetcher(ep.url, { method: ep.body ? "POST" : "GET", headers: ep.headers || {}, body: ep.body ? JSON.stringify(ep.body) : undefined, signal: AbortSignal.timeout(45000) });
       status = resp.status;
       dur = Date.now() - t0;
-      if (status !== 200) { error = "HTTP " + status; }
+      try { body = (await resp.text()).slice(0, 200); } catch (e) { body = ""; }
+      if (status !== 200) { error = "HTTP " + status + " body:" + body.slice(0, 80); }
       else {
-        const txt = await resp.text();
-        if (ep.body && txt.indexOf("error") === 0) { error = txt.slice(0, 120); status = 0; }
+        if (ep.body && body.indexOf("error") === 0) { error = body.slice(0, 120); status = 0; }
       }
     } catch (e) {
       dur = Date.now() - t0;
