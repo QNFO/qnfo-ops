@@ -1,3 +1,4 @@
+C:/Users/LENOVO/Documents/GitHub/qnfo-ops/PLCY/SECRETS-INVENTORY.md [chars 0-4500 of 5974] (auto-truncated, use offset/limit to read more):
 # SECRETS-INVENTORY — QNFO Token/Key/Password Map (2026-09-01)
 
 > Owner: QNFO · Status: ACTIVE · Directive: ALL tokens/keys/passwords live in MULTIPLE REDUNDANT places; for 100% cloud architecture all MUST live in Cloudflare Worker Secrets (canonical store) AND be accessed that way. Values are NEVER recorded in this repo or any git history.
@@ -26,7 +27,8 @@
 | ROUTER_AUTH_KEY_2 | qnfo-ai | .qnfo/router-auth-key-2 | — | 2 places ✓ |
 | EMAIL_API_KEY | qnfo-ai, qnfo-tools-mcp, qnfo-cloud-ops | — | — | 3 cloud places ✓ |
 | GATEWAY_EMAIL_KEY | qnfo-email | — | — | paired with EMAIL_API_KEY across qnfo-ai/email (shared value expected) |
-| SYNC_TOKEN | qnfo-agent-orchestrator, qnfo-ai-search, qnfo-thread-ingest, qnfo-idea-factory, qnfo-gateway, qnfo-skill-sync, qnfo-agent-ws | — | — | 7 cloud places ✓ (per-worker values may differ; each worker self-consistent) |
+| DEEPSEEK_API_KEY | qnfo-ai | — | — | single place (external provider key, unreadable via API; recovery = regenerate in DeepSeek console) |
+| SYNC_TOKEN | qnfo-agent-orchestrator, qnfo-ai-search, qnfo-thread-ingest, qnfo-idea-factory, qnfo-gateway, qnfo-skill-sync, qnfo-agent-ws | .qnfo/ai-search-sync-token (backup for qnfo-ai-search's SYNC_TOKEN) | — | 7 cloud places ✓ + local |
 | SOCIAL_TOKEN | qnfo-ai, qnfo-social | — | — | 2 places ✓ |
 | BSKY_APP_PASS / BSKY_HANDLE | qnfo-social | — | — | single place — RECOVERY = regenerate in Bluesky dashboard |
 | GATEWAY_SOCIAL_TOKEN | qnfo-social | — | — | single place — RECOVERY = regenerate with SOCIAL_TOKEN |
@@ -45,22 +47,4 @@
 | TURNSTILE_SECRET | qnfo-gateway | — | — | single place — RECOVERY = regenerate in CF dashboard |
 | TEST_TOKEN | qnfo-agent-orchestrator | — | — | single place (test-only) |
 | INDEX_TOKEN | qnfo-intent-orchestrator | — | — | single place (search-index sync) |
-| DIGEST_FROM / DIGEST_TO / CF_ACCOUNT | qnfo-intent-orchestrator, qnfo-infra | — | — | config secrets; cloud-only |
-| DEEPCHAT_CLI_AGENT_TOKEN | — | — | env | ops-only (local CLI) |
-
-## 3. Fixes applied 2026-09-01
-
-1. TRIAGE_TOKEN: rotated to a session-controlled value -> stored .qnfo/triage-token (chmod/icacls) -> set on qnfo-idea-triage -> VERIFIED live (POST /triage HTTP 200, 3-model scorecard for the Landauer test idea = first successful live scoring).
-2. BUFFER_TOKEN: provisioned on qnfo-social from env (unlocks multi-channel dissemination per architecture doc §4; env+secret = 2 places).
-3. .qnfo directory hardened: icacls /inheritance:r + user-only (OI)(CI)F.
-4. This inventory committed to qnfo-ops (values never in git).
-
-## 4. Known single-place tokens (accepted, with recovery)
-
-BSKY_APP_PASS/BSKY_HANDLE, GATEWAY_SOCIAL_TOKEN, MCP_TOKEN, OPS_ADMIN_TOKEN, GMAIL_PASS, TURNSTILE_SECRET, TEST_TOKEN, INDEX_TOKEN — values created externally (Bluesky/CF dashboards) and unreadable via API; redundancy = documented regeneration procedure, not duplication.
-
-## 5. Ops procedures
-
-- Provision new token: generate -> wrangler secret put <NAME> --name <worker> -> write .qnfo/<name> -> icacls -> (if multi-worker) repeat on all holders -> live probe.
-- Restore from local: cat .qnfo/<name> | wrangler secret put <NAME> --name <worker>.
-- Recovery after worker deletion: secrets are lost with the worker; re-provision from local backups or regenerate external tokens (BSKY etc.).
+| DIGEST_FROM /
