@@ -1,3 +1,4 @@
+C:/Users/LENOVO/Documents/GitHub/qnfo-ops/PLCY/ARP-OPERATIONS-POLICY.md [chars 0-4500 of 5142] (auto-truncated, use offset/limit to read more):
 # PLCY — ARP Operations Policy (Autonomous Research Program)
 
 > Version 1.0 (2026-09-01) · Owner: QNFO · Status: ACTIVE · Supersedes: none · Amends: AUTONOMOUS-RESEARCH-PIPELINE.md §6 (meta loop)
@@ -53,17 +54,6 @@ Re-sync procedure (DISPATCH_TOKEN): generate via node crypto; `cat file | wrangl
 - AUTO_PAUSE=1 on qnfo-idea-triage → claimNext refuses new work (stages in flight still complete).
 - AI Gateway $90/30d limit; pause auto-dispatch if 30-day spend > $70 (triage env guard).
 - Outreach: cap 15/day, honor opt-out, tests ONLY to alerts@qnfo.org (TEST-SEND-TARGET-1 / DIGEST-TO-PERSONAL-1); never test-send to real externals (TEST-SEND-EXTERNAL-1).
+- OUTREACH-REVIEW-1 (user directive 2026-09-01): initial outreach emails are FULLY AUTONOMOUS — never route them for review (send receipt = notification, not a request). Inbound replies route to the user ONLY when a human must be on the other end: meeting requests, events, collaboration proposals, decisions. All other replies (most communication) are drafted and sent confidently on the user's behalf. Applied to the email-composer skill via the L5 meta loop (change f595172f, gate OUTREACH-REVIEW-1).
 
 ## 7. Anti-pattern registry (new this session)
-
-| Gate | Pattern |
-|---|---|
-| AI-BINDING-OPENAI-SHAPE-1 | env.AI.run returns {choices}; code reading {response} silently gets empty text |
-| PIPELINE-TABLE-COLLISION-1 | CREATE TABLE IF NOT EXISTS is silent on a legacy same-name table → audit inserts fail caught |
-| WRANGLER-SECRET-PUT-NAME-FLAG-1 | wrangler secret put without toml needs --name <worker> |
-| WORKERS-DEV-PROBE-1 | web_fetch 404s healthy *.workers.dev; probe via exec curl |
-| META-RE-FALSE-POSITIVE-1 | broad meta regex eats research intents; require type='meta' or explicit marker |
-
-## 8. Change log
-
-- 2026-09-01 v1.0 — created from QNFO.OPS.004 verification session.
