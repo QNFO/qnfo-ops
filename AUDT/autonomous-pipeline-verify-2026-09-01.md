@@ -1,3 +1,4 @@
+C:/Users/LENOVO/Documents/GitHub/qnfo-ops/AUDT/autonomous-pipeline-verify-2026-09-01.md [chars 0-4500 of 6263] (auto-truncated, use offset/limit to read more):
 # AUDT — Autonomous Pipeline Verification & Operationalization (2026-09-01)
 
 - **WBS:** QNFO.OPS.004 · **Phase:** 1/1 · **Operator:** DeepChat (deepseek-v4-pro), session of 2026-09-01 ~09:00-10:00Z
@@ -24,23 +25,20 @@
 ## 3. L5 self-improvement loop — BUILT + TESTED (qnfo-kaizen v0.2)
 
 - Deployed d23055f0 (module worker; bindings QNFO_AUDIT + SKILLS_BUCKET(qnfo) + AI; crons 0 2 * * * meta loop + 0 10 * * 1 drift scan).
-- Flow: pending meta intents → glm-5.2 claim-sheet validation (FRAMEWORK-DOGFOOD-1) → meta_claims(validated) → apply: additive-only gate-section append to existing R2 skill (prompts/skills/<skill>/SKILL.md) → re-read-back verify → meta_changes row + kaizen_reports row. Boundaries: no new skills (NO-MORE-SKILLS-1), no version bump (documented deviation from architecture doc §6 — version stays curated; parity-safe), GitHub push deferred when GITHUB_TOKEN unset → local skill_sync bridge (PROMPT-PARITY-1).
-- E2E test PASSED: 2 claims (META-TEST-CLAIM-1/2) → validated → applied → verified → audit rows → R2 body read-back shows both gate sections with evidence/confidence/scope. Test artifacts cleaned (skill object, intents, claims/changes rows); kaizen_reports retained as audit record.
-- Auth: KAIZEN_TOKEN secret set; value at C:/Users/LENOVO/.qnfo/kaizen-token (commit endpoints).
+- Flow: pending meta intents → glm-5.2 claim-sheet validation (FRAMEWORK-DOGFOOD-1) → meta_claims(validated) → apply: additive-only gate-section append to existing R2 skill (prompts/skills/<skill>/SKILL.md) → re-read-back verify → meta_changes row + kaizen_reports row. Boundaries: no new skills (NO-MORE-SKILLS-1), no version bump (documented deviation from architecture doc §6 — version stays curated; parity-safe), GitHub push deferred when GITHUB_TOKEN unset → local skill_sync
 
-## 4. Claims & Evidence (FRAMEWORK-DOGFOOD-1)
+## Addendum B — deferred-item resolutions (same day, ~09:45-10:00Z)
 
-| claim | evidence | confidence | status |
+Resolved in the follow-up session (GITHUB_TOKEN confirmed present in env — valid rwnq8, full repo scope):
+
+| # | Deferred item | Resolution | Evidence |
 |---|---|---|---|
-| Cron delivery works (stage cron) | pipeline_tasks claim row at 09:10:03Z + pipeline_status row | high | verified |
-| Dispatch 401 resolved | both secrets uploaded; live re-dispatch observed §3 monitor | high | verified-at-09:20Z |
-| pipeline_tasks audit logging restored | claim row present post-DROP | high | verified |
-| L5 meta loop works end-to-end | R2 body read-back with 2 appended gate sections + meta_changes + kaizen_reports rows | high | verified |
-| Triage scoring will work at 10:00Z | last-block parse + dual-shape extraction in deployed bundle; account AI shape proven by probe | medium | pending-verification |
+| 1 | GITHUB_TOKEN provisioning | Token set as secret on qnfo-kaizen AND qnfo-agent-orchestrator; push path mapping fixed in qnfo-kaizen (R2 prompts/skills/<name>/SKILL.md → repo <name>/SKILL.md, slice(14), deploy 93ad2dce); OUTREACH-REVIEW-1 gate pushed to QNFO/qnfo-skills master (sha 5618e95c; ls-remote HEAD 38d44ace; file API has-outreach=true) | /health github_token:true + githubPush:true; GitHub contents API |
+| 2 | qnfo-outreach (L3 sender) | BUILT v0.1 (deploy 06e25531): claims outreach_queue, personalizes via contact_ledger + living-paper, sends via own Send Email binding (qnfo@qnfo.org), cap 15/day, honors opt-out status, tests to alerts@qnfo.org. E2E test PASSED (test row sent to alerts@qnfo.org, status sent). Cron 0 9 * * *; OUTREACH_TOKEN at .qnfo/outreach-token | /health bindings true; outreach_queue status=sent |
+| 3 | qnfo-impact (L4 stats) | BUILT v0.1 (deploy 825994a0): Crossref/OpenAlex/Zenodo per DOI → citation_stats + impact_scores. Legacy 0-row tables citation_stats/impact_scores dropped (PIPELINE-TABLE-COLLISION-1 #2). Test PASSED: OpenAlex cited_by_count row written for 10.5281/zenodo.22159758. Cron 0 4 * * *; IMPACT_TOKEN at .qnfo/impact-token | citation_stats + impact_scores rows |
+| 4 | dispatchStage failure logging | PATCHED qnfo-idea-triage (deploy e2815785): logTask on agent-http-* and no-task-id errors | code read-back |
+| 5 | E2E watchdog too tight | agent-orchestrator DO watchdog 30→60 min (deploy 75d821cf, all 6 bindings preserved); queue row reset for fresh claim | /health ok; setAlarm 60*60*1e3 |
+| 6 | Cachazo reply | No reply received yet (only the sent EOI, email id 386). Action on reply: attribute corpus as platform corpus | email_search |
+| 7 | ROUTER-CONTEXT-GAP-1 gloss | STILL DEFERRED (owner-coordinated): artifact qnfo-ai/ROUTER-CONTEXT-GAP-1.md prepared; deploy needs 22-binding reconstruction — do not deploy over concurrent qnfo-ai working tree | artifact commit f2dfd25 |
 
-## 5. Handoff
-
-- Verify at 10:00Z: hourly triage scores the 20 pending research intents (triage_decision set; ACCEPT enqueues).
-- Watch the seeded row through note→draft→review→revise→publish (40-min watchdog per stage; review parse now last-block).
-- Deferred: dispatchStage failure logging (SOFT #6); GITHUB_TOKEN provisioning for worker-side meta pushes; qnfo-outreach + qnfo-impact workers (L3/L4, per architecture doc §4-5).
-- Respect GIT-OWNERSHIP-1: qnfo-workers working tree still holds concurrent-session uncommitted work (agent-orchestrator/intent-orchestrator/idea-triage dirs) — do not commit those files.
+Open items at closeout: 10:00Z triage cron verification (first clean scoring run); NOTE stage b3391f89 retry in flight (60-min watchdog); ROUTER gloss deploy; concurrent qnfo-workers/qnfo-skills dirt; child-slot frozen View ceiling (DeepChat runtime).
