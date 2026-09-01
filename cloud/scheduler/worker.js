@@ -10,7 +10,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.5.1";
+const VERSION = "1.6.0";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -157,6 +157,7 @@ const AMS_SCHEDULE = {
   "board-sync":     { times: ["08:00"], days: "6",   fixed: null },
   "outreach":       { times: ["11:00"], days: "1-5", fixed: null },
   "nlnet":          { times: ["11:00"], days: null,  fixed: { dom: 3, mon: 9 } },
+  "worker-health":  { times: ["05:05", "05:35"], days: "*",   fixed: null },
 };
 
 // Build cron strings (UTC) for a given Amsterdam UTC offset in hours (+2 CEST, +1 CET).
@@ -1241,6 +1242,60 @@ async function jobOutreach(env) {
   return { status: out.errors.length ? "error" : "ok", notes: out };
 }
 
+
+// ---------- AI endpoint health (every 30 min) ----------
+async function jobWorkerHealth(env) {
+  const endpoints = [
+    { worker: "qnfo-ai",        url: "https://qnfo-ai.q08.workers.dev/health",        headers: {} },
+    { worker: "personal-api",   url: "https://personal-api.q08.workers.dev/health",   headers: {} },
+    { worker: "qnfo-idea-factory", url: "https://ideas.qnfo.org/health",              headers: {} },
+    { worker: "qnfo-ai-chat",   url: "https://qnfo-ai.q08.workers.dev/v1/chat/completions", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (env.ROUTER_AUTH_KEY || "") }, body: { model: "deepseek-v4-flash", messages: [{ role: "user", content: "ping" }], max_tokens: 5 } },
+    { worker: "personal-api-chat", url: "https://personal-api.q08.workers.dev/v1/chat/completions", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (env.PL_API_KEY || "") }, body: { model: "personal-twin-chat", messages: [{ role: "user", content: "ping" }], max_tokens: 5 } }
+  ];
+  const out = { checks: [], failed: [] };
+  const now = new Date().toISOString();
+  for (const ep of endpoints) {
+    const t0 = Date.now();
+    let status = 0, dur = 0, error = "";
+    try {
+      const resp = await fetch(ep.url, { method: ep.body ? "POST" : "GET", headers: ep.headers || {}, body: ep.body ? JSON.stringify(ep.body) : undefined, signal: AbortSignal.timeout(45000) });
+      status = resp.status;
+      dur = Date.now() - t0;
+      if (status !== 200) { error = "HTTP " + status; }
+      else {
+        const txt = await resp.text();
+        if (ep.body && txt.indexOf("error") === 0) { error = txt.slice(0, 120); status = 0; }
+      }
+    } catch (e) {
+      dur = Date.now() - t0;
+      error = String(e && e.message || e).slice(0, 200);
+      status = 0;
+    }
+    try {
+      await env.AUDIT.prepare("INSERT INTO worker_invocations (worker_name, endpoint, status_code, duration_ms, created_at) VALUES (?1,?2,?3,?4,?5)")
+        .bind(ep.worker, ep.url, status, dur, now).run();
+    } catch (e) {}
+    const ok = status === 200 && !error;
+    out.checks.push({ worker: ep.worker, status, duration_ms: Math.round(dur), ok });
+    if (!ok) out.failed.push({ worker: ep.worker, status, error });
+  }
+  if (out.failed.length) {
+    const L = ["AI endpoint health check FAILED " + now, ""];
+    for (const f of out.failed) L.push("- " + f.worker + " -> HTTP " + f.status + " " + (f.error || ""));
+    L.push("", "Action: verify endpoint config, worker deploy, provider keys (QNFO-ROUTER/PERSONAL-TWIN apiType must be 'openai').");
+    const subject = "QNFO AI endpoint health alert";
+    const d = await sendDigest(env, subject, L.join(NL));
+    try {
+      await env.AUDIT.prepare("INSERT INTO alerts (source, level, message, digested) VALUES ('worker-health', 'error', ?1, 1)")
+        .bind(L.join(NL).slice(0, 2000)).run();
+    } catch (e) {}
+    await recordEvent(env, "job-run", "jr-worker-health-" + Date.now().toString(36), "worker-health FAILED " + JSON.stringify(out.failed), { job: "worker-health", status: "error" });
+    return { status: "error", notes: out };
+  }
+  await recordEvent(env, "job-run", "jr-worker-health-" + Date.now().toString(36), "worker-health ok " + out.checks.length + " endpoints", { job: "worker-health", status: "ok" });
+  return { status: "ok", notes: out };
+}
+
 // ================= PART 5: registry + dispatch + handlers =================
 
 const JOBS = {
@@ -1257,6 +1312,7 @@ const JOBS = {
   "nlnet": jobNlnet,
   "outreach": jobOutreach,
   "backfill": jobBackfill,
+  "worker-health": jobWorkerHealth,
 };
 
 // cron -> job dispatch map for a given Amsterdam offset
