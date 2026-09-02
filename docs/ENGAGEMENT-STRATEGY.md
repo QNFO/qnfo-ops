@@ -78,7 +78,7 @@ SAME-WINDOW). Registry: qnfo-audit.experiments.
 | Experiment | Status | Design | Decision gate |
 |---|---|---|---|
 | EXP-2026-001 version-freshness | running | treatment jpcub-qec-landauer v1.7 site-synced vs static control; baseline 3-4 req/day | 14-day close, >=2 honest signals |
-| EXP-2026-002 message framing (NEW) | running | delta-first framing vs DOI-first framing on queued Bluesky threads (cycle-1 papers) | per-post engagement deltas aggregated over >=4 weeks |
+| EXP-2026-002 message framing (NEW) | running | delta-first framing vs DOI-first framing on Bluesky threads (cycle-1 papers). Treatment applies to newly composed threads from 2026-09-02; control = existing queue pattern (DOI-first). Both post through the same engine. | per-post engagement deltas aggregated over >=4 weeks |
 | EXP-2026-003 posting time (NEW) | planned | morning window (07-08 UTC) vs current 14:30 UTC slot | gate on EXP-2026-002 data + cron shift of qnfo-social |
 
 Power reality (AGGREGATE-OVER-N): per-paper honest traffic is 3-4 req/day; a single-path A/B cannot
@@ -95,7 +95,7 @@ Channel matrix (verified 2026-09-02):
 
 | Channel | Engine | State | Cadence |
 |---|---|---|---|
-| Bluesky (@qnfo.bsky.social) | qnfo-social worker | LIVE - 7 queued threads, posts 1/day 14:30 UTC | daily |
+| Bluesky (@qnfo.bsky.social) | qnfo-social worker | LIVE - 13 queued threads at audit, posts 1/day 14:30 UTC | daily |
 | Mastodon / LinkedIn / X | Buffer (buffer_post.py) | channels connected; token 401 = reconnect (owner user) | on v-next publish + calendar |
 
 Content rules (D7 copy): <=280 chars, contribution → DOI, no exclamation marks, no hype, no invented
@@ -107,10 +107,10 @@ highest-leverage social action at current scale); follow and engage adjacent-dom
 (QEC/thermo/energy efficiency); threads invite scrutiny, not applause.
 
 Content calendar (next 7 days, from the existing queue + cycle-1 shortlist): 1 queued thread/day
-(already 7 queued: queue-purpose-principle, queue-pattern-trilemma, queue-pbo-formalisms-autaxys,
-queue-thermo-constraints-qc, queue-quantum-laws-of-form, queue-strange-loop-quantization,
-queue-harmonic-resonance-v2) + one v-next announcement thread when JPC.003 v1.7 addendum publishes
-(P3 amplification of VISIBILITY-VERSIONING-PROGRAM).
+from the existing queue (13 queued threads at audit time 2026-09-02 - the queue is fed by
+autoScan + compose, count varies with concurrent sessions; engine posts 1/day at 14:30 UTC) + one
+v-next announcement thread when JPC.003 v1.7 addendum publishes (P3 amplification of
+VISIBILITY-VERSIONING-PROGRAM). Newly composed threads use delta-first framing (EXP-2026-002).
 
 ## 6. Citation engine (P4)
 
@@ -123,7 +123,7 @@ queue-harmonic-resonance-v2) + one v-next announcement thread when JPC.003 v1.7 
 - Cross-linking: genuine intra-corpus citations (KG edges) + "cite this" blocks (BibTeX + DOI) on
   paper pages (P6 surface).
 - Collection: citation_sweep.py (OpenAlex + DataCite + Zenodo stats) verified 2026-09-02
-  (25 DOIs → 70 rows: openalex 20, datacite 25, zenodo 50). Internal-vs-external citation
+  (25 DOIs → 95 rows: openalex 20, datacite 25, zenodo 50). Internal-vs-external citation
   classification: query DataCite events detail (relationships.citedByCrossref) and exclude
   qnfo.org-affiliated DOIs, store class in citation_stats via the note/metric suffix -
   next instrumentation step.
@@ -163,6 +163,10 @@ queue-harmonic-resonance-v2) + one v-next announcement thread when JPC.003 v1.7 
 
 ## 10. Governance & guardrails (P8)
 
+Cost envelope: all collection is read-only API calls (AT proto, Buffer, OpenAlex, DataCite,
+  Zenodo, CF GraphQL) - no AI inference in the collection path; Cloudflare spend stays inside the
+  $90/30d budget policy (COST-AUDIT-MISS-AI-1).
+
 HARD: honest-only metrics; NO-SPAM (social etiquette + email anti-burst); NO-FABRICATION; no
 credential signaling; brand-language ban; no meta-commentary; no journals (Zenodo canonical);
 publications remain computationally verified (COMPUTATIONAL-VERIFICATION-1); fleet self-doc
@@ -192,7 +196,7 @@ claim in this document (FRAMEWORK-DOGFOOD-1).
 | Buffer API token currently unauthorized | profiles.json 401 (both api.bufferapp.com endpoints) 2026-09-02 | high | verified; reconnect owner=user |
 | jobEngagement deployed and scheduled | /health version=1.10.0, 18 jobs incl. engagement; cron 15 5 * * 1 added via schedules API (16 triggers) | high | verified |
 | Weekly digest now carries citations + engagement | jobVisibility v1.10.0 source reads citation_stats + social_engagements | high | verified (code read-back) |
-| Citation sweep works end-to-end | 25 DOIs → 70 rows: openalex 20 (sum 2), datacite 25 (sum 32), zenodo 50 (2,502 dl / 684 views) | high | verified |
+| Citation sweep works end-to-end | 25 DOIs → 95 rows (openalex 20 sum 2, datacite 25 sum 32, zenodo 50 = 2,502 dl / 684 views) | high | verified |
 | Zone honest baseline | CF GraphQL 7d 66,328 req / 26,727 pv / 7,044 uniq; ~90% bot noise (reach-audit) | high | verified |
 | Corpus citations are non-zero via DataCite | datacite citationCount sum 32 / 25 DOIs; internal-vs-external split not yet classified | high | verified-baseline |
 
