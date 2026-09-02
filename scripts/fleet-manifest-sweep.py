@@ -3,6 +3,18 @@ import json, os, re, datetime
 rows = json.load(open(r'C:/Users/LENOVO/AppData/Local/Temp/fleet_rows.json', encoding='utf-8'))
 QW = r'C:/Users/LENOVO/AppData/Local/Temp/qnfo-workers'
 QO = r'C:/Users/LENOVO/AppData/Local/Temp/qnfo-ops'
+def compat_risk(name, compat):
+    # streams_enable_constructors is default-ON from compat date 2024-09-23 (CF docs).
+    # Workers that construct new ReadableStream (SSE/streaming) FAIL with a 502
+    # "ensemble failed: ... enable the streams_enable_constructors compatibility flag"
+    # class when deployed under an older/missing compat date. Gate: flag < 2024-09-23.
+    if not compat or compat == 'MISSING':
+        return True
+    try:
+        return compat < '2024-09-23'
+    except Exception:
+        return True
+
 def repo_dir(name):
     if os.path.isdir(os.path.join(QW, name)): return 'qnfo-workers/' + name
     if os.path.isdir(os.path.join(QO, 'cloud', name)): return 'qnfo-ops/cloud/' + name
