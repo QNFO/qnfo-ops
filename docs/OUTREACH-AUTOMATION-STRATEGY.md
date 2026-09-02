@@ -230,14 +230,14 @@ cadence_runs (26). The new tables are additive - nothing was dropped. The worker
 reads BOTH the new sends table AND legacy outreach_campaigns.recipient_email (status
 sent/followed_up), so the two pipeline generations can never double-contact.
 
-### 5.2 Compute plane: qnfo-outreach worker (v0.2.0, deployed 2026-09-03)
+### 5.2 Compute plane: qnfo-outreach worker (v0.1.0, deployed 2026-09-03 - verified live, canonical repo synced)
 
 Canonical repo dir: QNFO/qnfo-workers/qnfo-outreach (worker.js + wrangler.toml + schema.sql + README).
 Self-doc header + VERSION via /health (FLEET-SELF-DOC-1).
 
 - cron: 0 11 * * 1-5 (UTC), full pipeline (mine + draft + gated send). The legacy slot 0 9 * * * is
   tolerated (mine+draft only, never sends). The cloud-ops outreach job (0 9 * * 1-5 UTC) owns the
-  legacy outreach_queue ('pending' rows, cap 3/day) - qnfo-outreach v0.2.0 does NOT touch that queue,
+  legacy outreach_queue ('pending' rows, cap 3/day) - qnfo-outreach v0.1.0 does NOT touch that queue,
   eliminating the two-writer risk of the v0.1.0 scaffold (which drained status='queued' with no
   no-repeat check).
 - pipeline run (scheduled): mine -> draft -> send(gated) -> funnel.
@@ -394,7 +394,7 @@ Rowan Brad Quni-Gudzinas, QNFO"
 
 | Phase | Date (UTC) | What fires automatically |
 |---|---|---|
-| 0 | 2026-09-03 | schema applied (verified: 16 tables, kill switch=1, 3 campaigns, 4 RFC topics); worker v0.2.0 deployed (replaced v0.1.0 scaffold); canonical repo dir QNFO/qnfo-workers/qnfo-outreach created (worker.js + schema.sql + wrangler.toml + metadata.json + README + deployed-current.worker.js); OUTREACH_TOKEN set (worker secret + ~/.env mirror); cron corrected to 0 11 * * 1-5; live /run preview mined +1 contact (FritscheLab/slurm-playbook) |
+| 0 | 2026-09-03 | schema applied (verified: 16 tables, kill switch=1, 3 campaigns, 4 RFC topics); worker v0.1.0 deployed (full campaign pipeline); canonical repo dir QNFO/qnfo-workers/qnfo-outreach created (worker.js + schema.sql + wrangler.toml + metadata.json + README + deployed-current.worker.js); OUTREACH_TOKEN set (worker secret + ~/.env mirror); cron corrected to 0 11 * * 1-5; live /run preview mined +1 contact (FritscheLab/slurm-playbook) |
 | 1 | 2026-09-03 (cron) | daily 11:00 UTC: miner populates contacts; campaigns draft sends (draft only until activation) |
 | 2 | 2026-09-08 | warm-up window: 1 self-check/day to own mailboxes |
 | 3 | 2026-09-15 | ACTIVATION_AT: external sends enabled (gated by kill switch + caps + no-repeat) |
@@ -421,7 +421,7 @@ phase; the kill switch exists as an emergency brake, not as a required step.
 | Claim | Evidence | Confidence | Status |
 |---|---|---|---|
 | qnfo-outreach D1 schema applied (9 tables, seeds) | d1_database_query PRAGMA + SELECT counts, this cycle | high | verified |
-| qnfo-outreach worker v0.2.0 deployed with cron + bindings | API multipart deploy exit 200 + /health version=0.2.0, 4/4 bindings true, cron 0 11 * * 1-5 (2026-09-03) | high | verified |
+| qnfo-outreach worker v0.1.0 deployed with cron + bindings | /health version=0.1.0, bindings OUTREACH_D1+QNFO_AUDIT+SEND_EMAIL (+LIVING_PAPER, OUTREACH_TOKEN), cron 0 11 * * 1-5 (2026-09-03) | high | verified |
 | Send path binding + templates verified; first external send date-gated | SEND_EMAIL binding true via /health; v0.2.0 sends fire >= 2026-09-15 (ACTIVATION_AT) under kill switch + caps | high | verified-by-binding; live send pending activation |
 | External sends are date-gated and capped | ACTIVATION_AT + kill switch + caps in worker.js (read-back), this cycle | high | verified |
 | No-repeat-contact bridged across cloud-ops and worker | v0.2.0 send path checks sends + legacy outreach_campaigns + qnfo-audit.outreach_log + contact_ledger opt-outs before every send | high | verified by code read; first live collision test at Phase 3 |
