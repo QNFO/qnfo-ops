@@ -29,7 +29,11 @@ def deployed_version(name):
     try:
         txt = open(cand, encoding='utf-8', errors='replace').read()
         m = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', txt)
-        return m.group(1) if m else 'UNVERSIONED'
+        if m: return m.group(1)
+        # Fallback (2026-09-02): API-deployed step-executor bundles carry no VERSION const;
+        # version is reported inline in /health worker+version adjacency.
+        m2 = re.search(r'worker:[^0-9]{0,40}?version:[^0-9]{0,12}?([0-9]+\.[0-9]+\.[0-9]+)', txt)
+        return m2.group(1) if m2 else 'UNVERSIONED'
     except Exception:
         return None
 now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
