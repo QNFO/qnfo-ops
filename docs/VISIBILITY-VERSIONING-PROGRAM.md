@@ -106,7 +106,7 @@ local scheduler is a front-end only. Canonical repo: qnfo-workers (worker bundle
 | P4 | **IndexNow ping on updated paper URLs** (extend existing per-publication ping to per-new-version) | qnfo-idea-triage / cloud-ops | on publish | event |
 | P5 | **citation-watch -> version trigger**: on new citation or related external result for an existing paper, write a type-C suggestion to version_queue (never auto-publishes) | qnfo-citation-watch | per change | event |
 | P6 | **events-radar -> version tie-in**: when a domain event/CFP matches a Tier-1 paper, suggest a reach delta (type B) for that paper targeting that event | events-radar | weekly | event |
-| P7 | **honest visibility scorecard**: weekly CF GraphQL (httpRequests1dGroups on qnfo.org zone, filtered), Zenodo stats per record (views/downloads via zenodo-stats job), social engagement, version count. Emit to qnfo-audit + digest | qnfo-cloud-ops / qnfo-auditor extension | weekly Mon | cron |
+| P7 | **honest visibility scorecard**: weekly CF GraphQL (httpRequests1dGroups on qnfo.org zone, filtered), Zenodo stats per record (views/downloads via zenodo-stats job), social engagement, version count. Emit to qnfo-audit + digest | qnfo-cloud-ops v1.9.0 jobVisibility (LIVE 2026-09-02, commit 0a7c070) | weekly Mon 07:30 AMS (30 5 * * 1) | cron |
 | P8 | **errata-publish already live**: inbound correction emails -> errata_queue -> errata_actions -> automated new-version publish (canonical 2026-09-02 v0.5 locale-framework). KEEP; count as delta type A. | qnfo-errata-watch/respond/publish | hourly | event |
 
 Note: P1/P5/P6 produce version_queue rows only; a human-veto-free but gate-checked publish path is
@@ -185,6 +185,7 @@ based: what delta type drove the most honest eyeballs).
 | Err errata auto-publish live | canonical 2026-09-02 locale-framework v0.5 06:38Z | high | verified |
 | Social engine live (Bluesky + Buffer 3 channels) | BUFFER-CROSS-PLATFORM-LIVE-1 / QNFO-SOCIAL-ENGINE-LIVE-1 2026-09-02 | high | verified |
 | Version queue triggers (P1/P5/P6) not yet built | this plan | n/a | planned |
+| P7 scorecard live in qnfo-cloud-ops v1.9.0 | /health 2026-09-02 (17 jobs, visibility); commit 0a7c070; schedule 30 5 * * 1 | high | verified-live |
 
 ---
 
