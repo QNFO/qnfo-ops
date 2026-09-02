@@ -4,6 +4,8 @@ Snapshots Roaming DeepChat settings/DB + canonical prompt stores and uploads to
 R2 qnfo-backups/deepchat/YYYY/MM/. Prints 'BACKUP OK' and exits 0 on success.
 Canonical: QNFO/qnfo-ops/scripts/backup_deepchat.py (mirrored .deepchat/scripts)
 
+v1.4 (2026-09-02, user directive): chat-content prune is RETENTION-AWARE per backup_agentdb_chunked.py v1.3 - KEEPS chats PINNED or active within 1 day; never prune-all (would erase current work).
+
 v1.3 (2026-09-02, user directive): agent.db is pruned to SETTINGS-PRESERVING content before
 upload (backup_agentdb_chunked.py v1.1 prunes chat-thread CONTENT on the snapshot copy: messages,
 assistant blocks, tape, search docs, delegations + FTS; KEEPS app_settings/providers/models/agents/
