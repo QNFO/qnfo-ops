@@ -11,7 +11,7 @@
 > Companion docs: EXPERIMENTATION-PROGRAM.md (experiment governance), VISIBILITY-VERSIONING-PROGRAM.md
 > (version engine), OUTREACH-AUTOMATION-STRATEGY.md (execution layer: automated email outreach - RFC /
 > async interviews / journalist-blogger pitches / grant EOIs - and open submissions; programs P-A..P-F,
-> qnfo-outreach worker v0.2.0), CLOUD-NATIVE-AUTONOMY-PLAN.md
+> qnfo-outreach worker v0.1.0), CLOUD-NATIVE-AUTONOMY-PLAN.md
 
 ---
 

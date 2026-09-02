@@ -424,7 +424,7 @@ phase; the kill switch exists as an emergency brake, not as a required step.
 | qnfo-outreach worker v0.1.0 deployed with cron + bindings | /health version=0.1.0, bindings OUTREACH_D1+QNFO_AUDIT+SEND_EMAIL (+LIVING_PAPER, OUTREACH_TOKEN), cron 0 11 * * 1-5 (2026-09-03) | high | verified |
 | Send path binding + templates verified; first external send date-gated | SEND_EMAIL binding true via /health; v0.1.0 sends fire >= 2026-09-15 (ACTIVATION_AT) under kill switch + caps | high | verified-by-binding; live send pending activation |
 | External sends are date-gated and capped | ACTIVATION_AT + kill switch + caps in worker.js (read-back), this cycle | high | verified |
-| No-repeat-contact bridged across cloud-ops and worker | v0.2.0 send path checks sends + legacy outreach_campaigns + qnfo-audit.outreach_log + contact_ledger opt-outs before every send | high | verified by code read; first live collision test at Phase 3 |
+| No-repeat-contact bridged across cloud-ops and worker | v0.1.0 send path checks sends + legacy outreach_campaigns + qnfo-audit.outreach_log before every send (code read 2026-09-03) | high | verified by code read; first live collision test at Phase 3 |
 | Per-venue API assumptions (PREreview/PRC/Qeios/Indico/pretalx) | documented flags; TOS checks before enable | medium | open |
 | Funnel feeds P7 scorecard | qnfo-cloud-ops v1.11.0 deployed 2026-09-03: jobVisibility outreach section reads funnel_daily + submissions via OUTREACH binding (/health outreach:true, 3/3 polls) | high | verified-live |
 | Grants radar key + journalist miner v0.2 | spec'd with secrets table | medium | dated (Phase 5 / v0.2) |
