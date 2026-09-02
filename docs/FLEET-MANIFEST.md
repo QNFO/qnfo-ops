@@ -3,13 +3,14 @@
 > Auto-generated 2026-09-02 06:17 UTC by the fleet self-documentation sweep.
 > Cycle-1 refresh 2026-09-02 ~19:20 UTC (QNFO.OPS.011): qnfo-ai 5.16.3, qnfo-intent-orchestrator 1.3.2,
 > qnfo-blank-audit 1.1.0, + qnfo-chat-canary 1.0.1 (behavioral chat canary + sent-guard).
+> Cycle-2 refresh 2026-09-02 ~20:45 UTC (QNFO.OPS.AUDITLOOP.001): + qnfo-auditor 1.0.0 (fleet event audit & act loop).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
 ## Self-documentation policy (FLEET-SELF-DOC-1)
 
 Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source; (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced; GAP = missing one or more.
 
-## Fleet (55 workers)
+## Fleet (56 workers)
 
 | Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |
 |---|---|---|---|---|---|
@@ -38,6 +39,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-citation-watch | NO-HEALTH | 2026-09-01 17:39:26 | - | - | GAP (no repo dir) |
 | qnfo-cloud-ops | 1.6.0 | 2026-09-01 17:41:20 | qnfo-workers/qnfo-cloud-ops | 1.5.0 | DRIFT repo=1.5.0 |
 | qnfo-events | 1.0.2 | 2026-09-02 19:57 UTC | qnfo-workers/qnfo-events | 1.0.2 | OK |
+| qnfo-auditor | 1.0.0 | 2026-09-02 20:40 UTC | qnfo-workers/qnfo-auditor | 1.0.0 | OK |
 | qnfo-email | NO-HEALTH | 2026-08-31 21:22:10 | - | - | GAP (no repo dir) |
 | qnfo-email-orchestrator | 0.3.3 | 2026-09-01 12:06:53 | qnfo-workers/qnfo-email-orchestrator | 0.3.3 | OK |
 | qnfo-errata-publish | 0.6.0 | 2026-08-28 16:29:36 | - | - | GAP (no repo dir) |

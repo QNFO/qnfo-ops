@@ -35,6 +35,7 @@ Cloudflare is canonical; local Windows state is an ephemeral, device-bound mirro
 | QNFO Data Freshness Sync (aa67d355, device) | daily 05:12 | Outlook COM calendar + received email -> orchestrator/Vectorize |
 | infra_status / infra_records / infra_analytics MCP | on-demand | Cloudflare API snapshot (workers/D1/Vectorize/R2/KV/AI Gateway) |
 | cost control | continuous | AI Gateway spend_limit; $90/30d budget audit (neurons) |
+| Fleet Audit & Act loop (qnfo-auditor v1.0.0) | 2x/day + Mon deep (01:45/13:45 UTC; Mon 06:45) | reviews/audits/acts on ALL event/log stores (issue_ledger, cloud_ops_events, alerts, agent_issues, audit_trail, deployment_history, errata); checks C1-C9: auto-close stale, reopen recurrence, job-silence, sweep-lag, errata-stuck, kaizen feed; digest on new HIGH; runbook AUDT/FLEET-AUDIT-AND-ACT-PROCEDURE.md |
 
 ## Layer 2 — Continuous improvement (kaizen)
 
