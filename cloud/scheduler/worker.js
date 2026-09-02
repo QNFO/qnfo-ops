@@ -158,6 +158,7 @@ const AMS_SCHEDULE = {
   "outreach":       { times: ["11:00"], days: "1-5", fixed: null },
   "nlnet":          { times: ["11:00"], days: null,  fixed: { dom: 3, mon: 9 } },
   "worker-health":  { times: ["05:05", "17:05"], days: "*",   fixed: null },
+  "sitemap-ping":   { times: ["06:00"], days: null,  fixed: { dom: 1, mon: null } },
 };
 
 // Build cron strings (UTC) for a given Amsterdam UTC offset in hours (+2 CEST, +1 CET).
@@ -712,6 +713,36 @@ async function jobReleaseCheck(env) {
   if (!action) return { status: "ok", notes: { latest: tag, changed: false } };
   const d = await sendDigest(env, "DeepChat release \u2014 " + tag, L.join(NL));
   return { status: "ok", notes: { latest: tag, changed: true, digest: d } };
+}
+
+// ---------- sitemap ping (monthly, 1st 06:00 Amsterdam) ----------
+// Folded from local DeepChat one-shot 6eff3cad (qnfo-cloud-migration-2026-09-02 handoff).
+// Health-pings the published sitemaps; failures digest, successes stay silent.
+const SITEMAP_URLS = [
+  "https://rwnq8.github.io/sitemap.xml",
+  "https://qnfo-landing.pages.dev/sitemap.xml",
+];
+async function jobSitemapPing(env) {
+  const out = { ok: 0, fail: 0, urls: [] };
+  for (const url of SITEMAP_URLS) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": "qnfo-cloud-ops/" + VERSION }, cf: { cacheTtl: 0 } });
+      if (r.status === 200) {
+        out.ok++;
+        await recordEvent(env, "sitemap-ping", "sp-" + url.replace(/[^a-z0-9]+/gi, "-").slice(0, 60) + "-" + Date.now().toString(36), "sitemap OK " + url, { job: "sitemap-ping", status: "ok", url });
+      } else {
+        out.fail++;
+        out.urls.push(url + " -> " + r.status);
+        await recordEvent(env, "sitemap-ping", "sp-" + url.replace(/[^a-z0-9]+/gi, "-").slice(0, 60) + "-" + Date.now().toString(36), "sitemap FAIL " + url + " status " + r.status, { job: "sitemap-ping", status: "error", url });
+      }
+    } catch (e) {
+      out.fail++;
+      out.urls.push(url + " -> " + String(e && e.message || e));
+      await recordEvent(env, "sitemap-ping", "sp-" + url.replace(/[^a-z0-9]+/gi, "-").slice(0, 60) + "-" + Date.now().toString(36), "sitemap ERROR " + url + ": " + String(e && e.message || e), { job: "sitemap-ping", status: "error", url });
+    }
+  }
+  if (out.fail > 0) await sendDigest(env, "Sitemap ping failures — " + new Date().toISOString().slice(0, 10), out.urls.join(NL));
+  return { status: "ok", notes: out };
 }
 
 // ---------- weekly (Friday 17:00 Amsterdam) ----------
@@ -1363,6 +1394,7 @@ const JOBS = {
   "outreach": jobOutreach,
   "backfill": jobBackfill,
   "worker-health": jobWorkerHealth,
+  "sitemap-ping": jobSitemapPing,
 };
 
 // cron -> job dispatch map for a given Amsterdam offset
