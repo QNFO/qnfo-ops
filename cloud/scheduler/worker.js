@@ -61,7 +61,7 @@ async function stateSet(env, key, value) {
 // ---------- email digest ----------
 async function sendDigest(env, subject, text, toOverride) {
   if (!env.SEND_EMAIL) return { error: "SEND_EMAIL binding missing" };
-  const to = toOverride || env.DIGEST_TO || "rwnquni@outlook.com";
+  const to = toOverride || env.DIGEST_TO || env.ALERT_EMAIL_TO || "";
   try {
     const r = await env.SEND_EMAIL.send({ to, from: { email: "alerts@qnfo.org", name: "QNFO Ops" }, subject, text });
     return { ok: true, messageId: r && r.messageId, to };
@@ -686,7 +686,7 @@ async function jobBriefing(env) {
   // SILENCE POLICY: the personal inbox gets the briefing ONLY when there are decision items.
   // A briefing with items requires clear-and-present attention (user directive 2026-08-28),
   // so it overrides DIGEST_TO (alerts@qnfo.org) to the personal inbox; everything else stays archived.
-  const d = items > 0 ? await sendDigest(env, subject, text, "rwnquni@outlook.com") : await storeDigest(env, "briefing", subject, text);
+  const d = items > 0 ? (env.DIGEST_TO ? await sendDigest(env, subject, text, env.DIGEST_TO) : await storeDigest(env, "briefing", subject, text)) : await storeDigest(env, "briefing", subject, text);
   return { status: "ok", notes: { items, digest: d } };
 }
 
