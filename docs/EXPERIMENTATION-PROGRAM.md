@@ -45,7 +45,9 @@ honest, measurable, and never spammy or fabricated.
 - experiments (id, name, hypothesis, kind, treatment, control, outcome_metric, baseline_date, status,
   owner, created_at)
 - paper_path_stats (date, slug, requests) - daily exact-path honest counts
-- Social per-post engagement will be added as a table when the engagement fetch is wired (next cycle).
+- Social per-post engagement: wired 2026-09-02 - qnfo-audit.social_engagements table + jobEngagement
+  (qnfo-cloud-ops v1.10.0, weekly Mon 07:15 AMS, Bluesky live + Buffer token-gated) + scripts/engagement_collect.py.
+  See docs/ENGAGEMENT-STRATEGY.md (this program's execution umbrella).
 
 Registered: EXP-2026-001 Version-freshness bump effect (running, baseline 2026-09-01).
 
@@ -63,7 +65,7 @@ Registered: EXP-2026-001 Version-freshness bump effect (running, baseline 2026-0
 | Website is dynamic-via-D1 (content edits = data writes) | WEBSITE-SYNC-COLUMNS-1 fix verified live (22261547 on page, 0x old DOI) | high | verified |
 | Honest per-paper traffic baseline is low (3-4 req/day) | paper_path_stats 2026-09-01 | high | verified |
 | Experiment registry substrate live in qnfo-audit | experiments + paper_path_stats tables created 2026-09-02 | high | verified |
-| P7 scorecard emits weekly honest digest | qnfo-cloud-ops v1.9.0 /health (17 jobs, visibility) | high | verified |
+| P7 scorecard emits weekly honest digest (citations + engagement sections added) | qnfo-cloud-ops v1.10.0 /health (18 jobs, visibility) | high | verified |
 | Social pipeline has per-post IDs for engagement tracking | Buffer post IDs recorded 2026-09-02 (mastodon/linkedin/twitter) | high | verified |
 
 ---
