@@ -1,0 +1,84 @@
+# Cloud-Native Autonomous Operations Plan — Entire Ecosystem
+
+**Status:** active (P0) · **Authority:** 100%-cloud-native user directive (2026-09-02) + NO-DEFERRED-ZERO-1
+· **Last updated:** 2026-09-02 · Canonical repo: QNFO/qnfo-ops
+
+Design goal: continuous execution, auditing/monitoring, continuous improvement (kaizen), and
+upgrades/optimizations run AUTOMATICALLY across the fleet with zero manual user intervention.
+Cloudflare is canonical; local Windows state is an ephemeral, device-bound mirror only.
+
+## Layer 0 — Continuous execution (unattended, scheduled)
+
+| Mechanism | Schedule (UTC) | What it runs |
+|---|---|---|
+| qnfo-cloud-ops v1.8.1 (cloud scheduler) | see crons | email-triage/gmail-triage/briefing/research-scan/outreach/weekly/weekly-ops/portfolio-sync/zenodo-stats/board-sync/release-check/nlnet/worker-health/sitemap-ping/loose-threads-sweep |
+| errata subprocess (qnfo-errata-watch/respond/publish) | :00 / :15 / :30 hourly | inbound-email triage -> errata_queue -> errata_actions -> automated new-version publish |
+| qnfo-arxiv-radar | 30 8 * * * | arxiv new-paper radar |
+| qnfo-citation-watch | 0 11 1,15 * * | citation change watch |
+| qnfo-research-radar | 0 6 1 * * + 0 8 * * 7 | research/monthly radar |
+| qnfo-twin-maintain | 0 4 * * * | twin maintenance |
+| qnfo-skill-sync | 0 3 * * * | skills repo -> R2 mirror |
+| qnfo-lifecycle | hourly + monthly | lifecycle ops |
+| qnfo-blank-audit | 40 4 * * * | blank/fallback gateway audit |
+| edge idea intake | event | ChatBox/Android -> qnfo-ai -> glm intent classifier -> orchestrator |
+
+## Layer 1 — Auditing / monitoring
+
+| Mechanism | Cadence | Scope |
+|---|---|---|
+| worker-health (in qnfo-cloud-ops) | 2x/day 12h apart (03:05/15:05) | fleet endpoint + /health checks; digest on failure |
+| loose-threads-sweep | Mon 05:00 | unfinished WBS states / open handoffs / open tasks >7d; digest cap 40 |
+| Fleet Drift & Self-Improvement Audit (42b1988c, device) | Mon 06:00 | regenerates FLEET-MANIFEST.md, flags self-doc drift, repairs via wrangler |
+| scheduler-guard.py (device) | every ops cycle | local cron registry == canonical set, <=1x/day, no residue |
+| disk-guard.py (device) | daily 07:30 | C: free-space WARN/CRIT out-of-band alert |
+| qnfo-system-health | 0 5 * * * | blank-response analytics |
+| QNFO Data Freshness Sync (aa67d355, device) | daily 05:12 | Outlook COM calendar + received email -> orchestrator/Vectorize |
+| infra_status / infra_records / infra_analytics MCP | on-demand | Cloudflare API snapshot (workers/D1/Vectorize/R2/KV/AI Gateway) |
+| cost control | continuous | AI Gateway spend_limit; $90/30d budget audit (neurons) |
+
+## Layer 2 — Continuous improvement (kaizen)
+
+| Mechanism | Cadence | Notes |
+|---|---|---|
+| qnfo-kaizen worker | 0 2 * * * + 0 10 * * 1 | scheduled kaizen processing |
+| CMD SKILLS UPDATE cycles (in-app) | session | dual-write + 7-store parity + prompt-store-verify exit 0 |
+| fleet-manifest-sweep + prompt-store-verify + dr_validate_schema | inside backup/drift | gates before every closeout |
+| loose-threads-sweep feed | weekly | surfaces loose threads for next ops cycle disposition |
+
+## Layer 3 — Upgrades / optimization
+
+| Mechanism | Cadence | Notes |
+|---|---|---|
+| release-check | 04:15 daily | DeepChat stable release alert (DEEPCHAT-RELEASE-TRACK-1) |
+| Fleet drift repair | weekly | redeploy canonical bundle where repo != live |
+| portfolio-sync / board-sync | Mon/Sat | GitHub mirror self-heal (direct-main, no PR churn) |
+| sitemap-ping | monthly 1st | sitemap health ping |
+| MODEL-KEY / param alignment | session | DEEPCHAT-DEFAULT-MODEL-1 + MODEL-PARAM-STORE-ALIGN-1 guards (app-device writes need app) |
+
+## Device-bound residue (sanctioned; NOT cloud-able)
+
+DeepChat local cron canonical set (scheduler-guard PASS): 42b1988c (fleet drift, repo+wrangler),
+aa67d355 (Outlook COM freshness), c7f96688 (MCP token refresh), 2055e49c (one-shot 2026-11-06),
+6e91c844 (disk guard). Windows Task QNFO-AgentDB-Daily-Backup (daily 21:30, runs WITHOUT DeepChat
+open; agent.db + config -> R2 qnfo-backups). Wrapper embeds a CLOUDFLARE_API_TOKEN copy - see
+SECRETS-INVENTORY rotation note.
+
+## Residual manual / user-side (owned, triggered, never silent)
+
+GitHub org runners billing (user) · workers.dev routing 10405 token scope (token rotation
+opportunity) · personal .ics custom domain for public serving (cloud-able, planned) · email-key
+rotation coordination (write-only verification) · DeepChat app installs (device by design;
+release-check alerts). Each is surfaced by loose-threads-sweep / worker-health / weekly drift
+until closed; none rests with only an owner label.
+
+## Claims & Evidence (FRAMEWORK-DOGFOOD-1)
+
+| claim | evidence | confidence | status |
+|---|---|---|---|
+| Cloud execution layer fires unattended | D1 cloud_ops_events job-run n>10 across 7 jobs in 48h (2026-09-02 probe) | high | verified |
+| Worker cron map live | CF schedules API: errata :00/:15/:30, arxiv-radar 30 8, citation-watch 0 11 1,15, kaizen 0 2+0 10 Mon, twin-maintain 0 4, skill-sync 0 3, system-health 0 5, research-radar monthly+Sun, lifecycle hourly (2026-09-02 probe) | high | verified |
+| Fleet self-doc + drift audit automatic | FLEET-MANIFEST.md auto-generated 2026-09-02 06:17Z; weekly cron 42b1988c | high | verified |
+| Loose threads under standing audit | loose-threads-sweep cron 0 5 * * 1 on qnfo-cloud-ops v1.8.1 (/health 2026-09-02) | high | verified |
+| Backup automatic without app open | schtasks QNFO-AgentDB-Daily-Backup Ready, next 21:30 2026-09-02 | high | verified |
+| Cost control active | infra_status AI Gateway spend_limit + gateway_logs cost_usd present | high | verified |
+| Residual manual items owned + triggered | loose-threads-sweep weekly digest + worker-health + drift audit (2026-09-02 doc) | medium | tracked |
