@@ -144,6 +144,15 @@ independently verifiable (diff between versions visible on Zenodo) - not just a 
 
 ## 6. Governance and integrity gates
 
+- WEBSITE-SYNC-COLUMNS-1 (HARD, canonical 2026-09-02 JPC.003 v1.7): the qnfo website (papers.qnfo.org, qnfo-gateway) renders
+LIVING from D1 living-paper columns doi + body_md (+ version, title, abstract) at request time - it is dynamic-via-D1, NOT static.
+A new-version publish is therefore NOT in sync with the website until those exact columns are written. Anti-pattern (observed): the
+publish sync step wrote only zenodo_doi + version, leaving doi = old record and body_md = old body; the live page kept serving v1.6
+(DOI 22117282, no addendum) while the Zenodo record was already v1.7 (22261547). Gate: after EVERY new-version publish, write the
+new record DOI into BOTH doi and zenodo_doi AND replace body_md with the full v1.7 markdown (frontmatter + body + addendum), then
+verify live https://papers.qnfo.org/papers/<slug> shows the new record DOI and new-version markers and ZERO occurrences of the old
+record DOI. Registry (portfolio-state) + living-paper + website must agree (REGISTRY-LAG-PARITY-1 extended to the website).
+
 - NO vanity versions: delta-type check is part of the publish gate; a v-next with no A-D delta is
   rejected (mirrors INTERNAL-COUNTS-SWEEP-1 / deposit-integrity gates).
 - NO credential/affiliation signaling anywhere in public prose (user mandate).
@@ -186,6 +195,7 @@ based: what delta type drove the most honest eyeballs).
 | Social engine live (Bluesky + Buffer 3 channels) | BUFFER-CROSS-PLATFORM-LIVE-1 / QNFO-SOCIAL-ENGINE-LIVE-1 2026-09-02 | high | verified |
 | Version queue triggers (P1/P5/P6) not yet built | this plan | n/a | planned |
 | P7 scorecard live in qnfo-cloud-ops v1.9.0 | /health 2026-09-02 (17 jobs, visibility); commit 0a7c070; schedule 30 5 * * 1 | high | verified-live |
+| Website serves published version (doi+body_md) | WEBSITE-SYNC-COLUMNS-1 fix 2026-09-02: live page shows 22261547/addendum, 0x 22117282 | high | verified-live |
 
 ---
 
