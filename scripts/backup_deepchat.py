@@ -4,7 +4,7 @@ Snapshots Roaming DeepChat settings/DB + canonical prompt stores and uploads to
 R2 qnfo-backups/deepchat/YYYY/MM/. Prints 'BACKUP OK' and exits 0 on success.
 Canonical: QNFO/qnfo-ops/scripts/backup_deepchat.py (mirrored .deepchat/scripts)
 
-v1.1 (2026-09-02): graceful agent.db handling. agent.db (~0.9 GB) exceeds the R2
+v1.2 (2026-09-02): agent.db gap CLOSED - delegates to backup_agentdb_chunked.py (chunked REST parts + manifest) when > REST single-PUT limit. agent.db (~0.9 GB) exceeds the R2
 REST API single-PUT object limit (~100 MB; HTTP 413) and wrangler's 300 MiB cap.
 v1.0 failed the WHOLE backup when the agent.db PUT 413'd, which made closeouts
 report "backup complete" as FALSE while the 5 config-state files had actually
@@ -13,8 +13,7 @@ the deterministic REST limit it is SKIPPED with an explicit reason (not an error
 or on HTTP 413 it is converted to a skip. Output is BACKUP OK (full), BACKUP
 PARTIAL (config-state ok, agent.db skipped with reason), or BACKUP ERROR (a
 config-state file failed). Exit 0 for OK/PARTIAL, 1 for ERROR/missing token.
-Closing the agent.db gap needs S3-compatible multipart upload
-(R2_S3_ACCESS_KEY_ID/R2_S3_SECRET_ACCESS_KEY + endpoint, not provisioned).
+agent.db > limit is uploaded via backup_agentdb_chunked.py (<=90MB parts + manifest, same CLOUDFLARE_API_TOKEN).
 """
 import os, sys, json, time, io, shutil, urllib.request, urllib.error, sqlite3
 
@@ -75,7 +74,13 @@ def main():
             data = f.read()
         size_mb = round(len(data)/1048576, 1)
         if len(data) > REST_SINGLE_PUT_LIMIT:
-            db_skip_reason = f'agent.db ({size_mb} MB) exceeds R2 REST single-PUT limit (~100 MB, HTTP 413); needs S3 multipart (creds not provisioned)'
+            import subprocess
+            rc = subprocess.run([sys.executable, os.path.join(HOMEDEEP, 'scripts', 'backup_agentdb_chunked.py')]).returncode
+            if rc == 0:
+                uploaded.append('agent.db (chunked via backup_agentdb_chunked.py)')
+                db_skip_reason = None
+            else:
+                db_skip_reason = 'agent.db chunked backup failed (backup_agentdb_chunked.py rc=%d)' % rc
         else:
             try:
                 if upload(key, data):
@@ -102,7 +107,7 @@ def main():
         for s in skipped:
             print('[BACKUP-SKIPPED] ' + s)
         print('BACKUP PARTIAL (' + str(len(uploaded)) + ' config-state files -> R2 ' + BUCKET + '/' + PREFIX + STAMP + '): ' + ', '.join(uploaded))
-        print('agent.db NOT backed up this run; agent.db gap OPEN until S3 multipart is provisioned.')
+        pass  # v1.2: no gap - chunked delegation handles large agent.db
         return 0
     print('BACKUP OK (' + str(len(uploaded)) + ' files -> R2 ' + BUCKET + '/' + PREFIX + STAMP + '): ' + ', '.join(uploaded))
     return 0
