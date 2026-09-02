@@ -7,10 +7,11 @@
 
 Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source; (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced; GAP = missing one or more.
 
-## Fleet (52 workers)
+## Fleet (53 workers)
 
 | Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |
 |---|---|---|---|---|---|
+| qnfo-backlog-exec | 1.1.1 | 2026-09-02 18:31 UTC | qnfo-workers/qnfo-backlog-exec | 1.1.1 | OK |
 | conference-radar | 1.2.0 | 2026-09-02 09:52:41 | qnfo-workers/conference-radar | 1.2.0 | OK (SUPERSEDED by events-radar 2026-09-02) |
 | events-radar | 1.0.0 | 2026-09-02 10:51:19 | qnfo-workers/events-radar | 1.0.0 | OK |
 | calendar-api | 0.2.1 | 2026-09-02 16:30:00 | qnfo-workers/calendar | 0.2.1 | OK |
