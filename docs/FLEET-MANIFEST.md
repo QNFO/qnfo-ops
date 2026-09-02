@@ -4,6 +4,8 @@
 > Cycle-1 refresh 2026-09-02 ~19:20 UTC (QNFO.OPS.011): qnfo-ai 5.16.3, qnfo-intent-orchestrator 1.3.2,
 > qnfo-blank-audit 1.1.0, + qnfo-chat-canary 1.0.1 (behavioral chat canary + sent-guard).
 > Cycle-2 refresh 2026-09-02 ~20:45 UTC (QNFO.OPS.AUDITLOOP.001): + qnfo-auditor 1.0.0 (fleet event audit & act loop).
+> Cycle-3 refresh 2026-09-02 ~21:50 UTC (ERRATA-WORKFLOW-MIGRATION): + qnfo-errata-orchestrator 1.0.0 (ErrataWorkflow durable orchestration);
+> legacy errata watch/respond/publish now step-executors behind errata-workflow (crons disabled 2026-09-02).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
 ## Self-documentation policy (FLEET-SELF-DOC-1)
@@ -42,9 +44,10 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-auditor | 1.1.2 | 2026-09-02 21:08 UTC | qnfo-workers/qnfo-auditor | 1.1.2 | OK |
 | qnfo-email | NO-HEALTH | 2026-08-31 21:22:10 | - | - | GAP (no repo dir) |
 | qnfo-email-orchestrator | 0.3.3 | 2026-09-01 12:06:53 | qnfo-workers/qnfo-email-orchestrator | 0.3.3 | OK |
-| qnfo-errata-publish | 0.6.0 | 2026-08-28 16:29:36 | - | - | GAP (no repo dir) |
-| qnfo-errata-respond | 0.4.1 | 2026-08-28 17:51:13 | - | - | GAP (no repo dir) |
-| qnfo-errata-watch | 0.2.1 | 2026-08-28 17:51:11 | - | - | GAP (no repo dir) |
+| qnfo-errata-orchestrator | 1.0.0 | 2026-09-02 21:47 UTC | qnfo-workers/errata-orchestrator | 1.0.0 | OK |
+| qnfo-errata-publish (errata-workflow step-executor) | 0.6.0 | 2026-08-28 16:29:36 | - | - | GAP (no repo dir) |
+| qnfo-errata-respond (errata-workflow step-executor) | 0.4.1 | 2026-08-28 17:51:13 | - | - | GAP (no repo dir) |
+| qnfo-errata-watch (errata-workflow step-executor) | 0.2.1 | 2026-08-28 17:51:11 | - | - | GAP (no repo dir) |
 | qnfo-gateway | 3.4.2-identity-fix-v2 | 2026-08-31 21:22:31 | - | - | GAP (no repo dir) |
 | qnfo-idea-factory | 2.4.0 | 2026-09-01 20:35:23 | qnfo-workers/qnfo-idea-factory | UNVERSIONED | DRIFT repo=UNVERSIONED |
 | qnfo-idea-triage | 1.1.0 | 2026-09-01 09:54:09 | qnfo-workers/qnfo-idea-triage | 1.1.0 | OK |
