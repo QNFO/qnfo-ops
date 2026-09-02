@@ -6,7 +6,7 @@
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/qnfo-infra/worker.js
 
 const NL = String.fromCharCode(10);
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 const CLOUD_OPS_SEARCH = "https://qnfo-cloud-ops.q08.workers.dev/search";
 
 function auth(token, env) {
@@ -80,7 +80,7 @@ async function collectState(env) {
   } catch (e) { out.kv = { error: String(e) }; }
   try {
     const rum = await cf(env, "/rum/site_info/list?per_page=50");
-    out.web_analytics = { count: (rum.result || []).length, sites: (rum.result || []).map((x) => x.auto_install ? x.auto_install.host : x.zone_name) };
+    out.web_analytics = { count: (rum.result || []).length, sites: (rum.result || []).map((x) => (x.ruleset && x.ruleset.zone_name) || x.site_tag || null) };
   } catch (e) { out.web_analytics = { error: String(e) }; }
   try {
     const g = await cf(env, "/ai-gateway/gateways/default");
