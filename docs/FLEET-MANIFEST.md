@@ -7,12 +7,13 @@
 
 Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source; (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced; GAP = missing one or more.
 
-## Fleet (49 workers)
+## Fleet (50 workers)
 
 | Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |
 |---|---|---|---|---|---|
 | conference-radar | 1.2.0 | 2026-09-02 09:52:41 | qnfo-workers/conference-radar | 1.2.0 | OK (SUPERSEDED by events-radar 2026-09-02) |
 | events-radar | 1.0.0 | 2026-09-02 10:51:19 | qnfo-workers/events-radar | 1.0.0 | OK |
+| personal-events-radar | 1.0.1 | 2026-09-02 14:25:00 | qnfo-workers/personal-events-radar | 1.0.1 | OK |
 | job-market-watch | NO-HEALTH | 2026-09-01 11:28:57 | - | - | GAP (no repo dir) |
 | obsidian-writer | NO-HEALTH | 2026-09-01 11:11:34 | - | - | GAP (no repo dir) |
 | osf-integrity-check | NO-HEALTH | 2026-09-01 11:56:24 | - | - | GAP (no repo dir) |
