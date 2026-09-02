@@ -7,12 +7,11 @@
 
 Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source; (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced; GAP = missing one or more.
 
-## Fleet (53 workers)
+## Fleet (54 workers)
 
 | Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |
 |---|---|---|---|---|---|
 | qnfo-backlog-exec | 1.1.1 | 2026-09-02 18:31 UTC | qnfo-workers/qnfo-backlog-exec | 1.1.1 | OK |
-| conference-radar | 1.2.0 | 2026-09-02 09:52:41 | qnfo-workers/conference-radar | 1.2.0 | OK (SUPERSEDED by events-radar 2026-09-02) |
 | events-radar | 1.0.0 | 2026-09-02 10:51:19 | qnfo-workers/events-radar | 1.0.0 | OK |
 | calendar-api | 0.2.1 | 2026-09-02 16:30:00 | qnfo-workers/calendar | 0.2.1 | OK |
 | personal-events-radar | 1.2.3 | 2026-09-02 16:10:00 | qnfo-workers/personal-events-radar | 1.2.3 | OK |
@@ -32,6 +31,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-arxiv-radar | NO-HEALTH | 2026-09-01 18:02:45 | - | - | GAP (no repo dir) |
 | qnfo-blank-audit | 1.0.0 | 2026-09-02 14:06:12 | qnfo-workers/qnfo-blank-audit | 1.0.0 | OK |
 | qnfo-calibration-audit | NO-HEALTH | 2026-09-01 18:17:33 | - | - | GAP (no repo dir) |
+| qnfo-chat-canary | NO-HEALTH | 2026-09-02 19:07 | - | - | GAP (no repo dir) |
 | qnfo-citation-watch | NO-HEALTH | 2026-09-01 17:39:26 | - | - | GAP (no repo dir) |
 | qnfo-cloud-ops | 1.6.0 | 2026-09-01 17:41:20 | qnfo-workers/qnfo-cloud-ops | 1.5.0 | DRIFT repo=1.5.0 |
 | qnfo-email | NO-HEALTH | 2026-08-31 21:22:10 | - | - | GAP (no repo dir) |
@@ -53,6 +53,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-ops | 0.4-service-bindings | 2026-08-12 13:49:35 | - | - | GAP (no repo dir) |
 | qnfo-outreach | 0.1.0 | 2026-09-01 09:50:24 | - | - | GAP (no repo dir) |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | - | - | GAP (no repo dir) |
+| qnfo-pdf | NO-HEALTH | 2026-09-02 18:34 | - | - | GAP (no repo dir) |
 | qnfo-qwav | 2.1.0 | 2026-08-28 12:24:11 | - | - | GAP (no repo dir) |
 | qnfo-research-radar | NO-HEALTH | 2026-09-01 17:45:42 | - | - | GAP (no repo dir) |
 | qnfo-secrets-audit | NO-HEALTH | 2026-09-01 18:14:38 | - | - | GAP (no repo dir) |
@@ -67,10 +68,10 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 
 ## Summary
 
-- Total workers: 48
-- Self-doc OK: 6
+- Total workers: 54
+- Self-doc OK: 11
 - Drift: 4
-- GAP/PARTIAL: 38
+- GAP/PARTIAL: 39
 
 ## Self-improvement loop
 
