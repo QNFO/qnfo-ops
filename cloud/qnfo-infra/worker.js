@@ -6,7 +6,7 @@
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/qnfo-infra/worker.js
 
 const NL = String.fromCharCode(10);
-const VERSION = "1.3.0";
+const VERSION = "1.5.0";
 const CLOUD_OPS_SEARCH = "https://qnfo-cloud-ops.q08.workers.dev/search";
 
 function auth(token, env) {
@@ -237,6 +237,26 @@ function metaLine(doc, m) {
   return (pick(["path"]) || pick(["id"]) || doc) + " \u2014 " + pick(["text"]).slice(0, 300);
 }
 
+const _STOP = new Set(["what","does","the","about","and","for","of","how","why","is","are","a","an","in","on","with","to","do","did","it","its","this","that","which","who","whom","whose","when","where","would","should","could","can","will","shall","may","might","must","not","no","none","there","their","they","them","his","her","our","your","my","me","we","you","he","she","be","been","being","have","has","had","as","by","from","at","or","if","than","then","so","also","any","all","some","such","only","more","most","other","each","both","s"]);
+function wordTerms(q) {
+  const t = String(q || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !_STOP.has(w)).slice(0, 6);
+  return t.length ? t : [String(q || "").toLowerCase().slice(0, 60)];
+}
+function bodyWindow(q, body) {
+  if (!body) return "";
+  const raw = String(body);
+  const low = raw.toLowerCase();
+  const terms = wordTerms(q);
+  let best = -1, bestScore = 0;
+  for (let pos = 0; pos < low.length; pos += 350) {
+    const win = low.slice(pos, pos + 700);
+    let score = 0;
+    for (const w of terms) if (win.includes(w)) score++;
+    if (score > bestScore) { bestScore = score; best = pos; }
+  }
+  if (bestScore === 0) return "";
+  return raw.slice(best, best + 700).replace(/\s+/g, " ");
+}
 async function retrieveRecords(env, q, scope, k) {
   const out = { query: q, scope, ts: new Date().toISOString(), sources: {} };
   const K = Math.min(Math.max(parseInt(k || "4", 10) || 4, 1), 8);
@@ -252,9 +272,11 @@ async function retrieveRecords(env, q, scope, k) {
           const slug = String((h.metadata || {}).slug || "").trim();
           if (slug && env.LIVING) {
             try {
-              const row = await env.LIVING.prepare("SELECT identifier, title, authors, doi, zenodo_doi, slug, status, abstract FROM papers WHERE slug = ?1 LIMIT 1").bind(slug).first();
-              if (row) enriched.push({ score: h.score, id: h.id, text: (row.title || row.identifier || slug) + (row.doi ? " | DOI " + row.doi : "") + (row.zenodo_doi ? " | Zenodo " + row.zenodo_doi : "") + " | status " + (row.status || "") + " | " + String(row.abstract || "").slice(0, 220), meta: { ...h.metadata, title: row.title, doi: row.doi || row.zenodo_doi || "", abstract: row.abstract || "" } });
-              else enriched.push({ score: h.score, id: h.id, text: "slug " + slug + " (not in living-paper)", meta: h.metadata });
+              const row = await env.LIVING.prepare("SELECT identifier, title, authors, doi, zenodo_doi, slug, status, abstract, body_md FROM papers WHERE slug = ?1 LIMIT 1").bind(slug).first();
+              if (row) {
+                const bw = bodyWindow(q, row.body_md);
+                enriched.push({ score: h.score, id: h.id, text: (row.title || row.identifier || slug) + (row.doi ? " | DOI " + row.doi : "") + (row.zenodo_doi ? " | Zenodo " + row.zenodo_doi : "") + " | status " + (row.status || "") + " | " + String(row.abstract || "").slice(0, 220) + (bw ? " | BODY: " + bw : ""), meta: { ...h.metadata, title: row.title, doi: row.doi || row.zenodo_doi || "", abstract: row.abstract || "" } });
+              } else enriched.push({ score: h.score, id: h.id, text: "slug " + slug + " (not in living-paper)", meta: h.metadata });
             } catch (e) {
               enriched.push({ score: h.score, id: h.id, text: "slug " + slug + " (enrich error)", meta: h.metadata });
             }
@@ -272,15 +294,17 @@ async function retrieveRecords(env, q, scope, k) {
   }
   try {
     if (env.LIVING && (scope === "research" || scope === "all")) {
-      const like = "%" + String(q).slice(0, 80).replace(/%/g, "") + "%";
-      const rows = await env.LIVING.prepare("SELECT identifier, title, authors, doi, zenodo_doi, slug, status, updated_at FROM papers WHERE title LIKE ?1 OR identifier LIKE ?1 OR doi LIKE ?1 OR slug LIKE ?1 ORDER BY updated_at DESC LIMIT ?2").bind(like, K).all();
+      const _w = wordTerms(q);
+      const _ph = _w.map((w, i) => "(title LIKE ?" + (i + 1) + " OR identifier LIKE ?" + (i + 1) + " OR slug LIKE ?" + (i + 1) + ")").join(" OR ");
+      const rows = await env.LIVING.prepare("SELECT identifier, title, authors, doi, zenodo_doi, slug, status, updated_at FROM papers WHERE " + _ph + " ORDER BY updated_at DESC LIMIT ?" + (_w.length + 1)).bind(..._w.map((w) => "%" + w + "%"), K).all();
       if (rows.results && rows.results.length) out.sources.living_papers = rows.results;
     }
   } catch (e) { out.sources.living_papers = [{ error: e.message }]; }
   try {
     if (env.GRAPH && (scope === "research" || scope === "all")) {
-      const like = "%" + String(q).slice(0, 80).replace(/%/g, "") + "%";
-      const rows = await env.GRAPH.prepare("SELECT id, label, name FROM nodes WHERE name LIKE ?1 OR label LIKE ?1 ORDER BY updated_at DESC LIMIT ?2").bind(like, K).all();
+      const _w = wordTerms(q);
+      const _ph = _w.map((w, i) => "(name LIKE ?" + (i + 1) + " OR label LIKE ?" + (i + 1) + ")").join(" OR ");
+      const rows = await env.GRAPH.prepare("SELECT id, label, name FROM nodes WHERE " + _ph + " ORDER BY updated_at DESC LIMIT ?" + (_w.length + 1)).bind(..._w.map((w) => "%" + w + "%"), K).all();
       if (rows.results && rows.results.length) out.sources.kg_nodes = rows.results;
     }
   } catch (e) { out.sources.kg_nodes = [{ error: e.message }]; }
@@ -292,8 +316,9 @@ async function retrieveRecords(env, q, scope, k) {
   } catch (e) { out.sources.programs = [{ error: e.message }]; }
   try {
     if (env.AUDIT && (scope === "research" || scope === "all")) {
-      const like = "%" + String(q).slice(0, 80).replace(/%/g, "") + "%";
-      const rows = await env.AUDIT.prepare("SELECT id, message_id, sender, recipient, subject, classification, status, received_at FROM emails WHERE subject LIKE ?1 OR sender LIKE ?1 OR body_text LIKE ?1 ORDER BY id DESC LIMIT ?2").bind(like, K).all();
+      const _w = wordTerms(q);
+      const _ph = _w.map((w, i) => "(subject LIKE ?" + (i + 1) + " OR sender LIKE ?" + (i + 1) + " OR body_text LIKE ?" + (i + 1) + ")").join(" OR ");
+      const rows = await env.AUDIT.prepare("SELECT id, message_id, sender, recipient, subject, classification, status, received_at FROM emails WHERE " + _ph + " ORDER BY id DESC LIMIT ?" + (_w.length + 1)).bind(..._w.map((w) => "%" + w + "%"), K).all();
       if (rows.results && rows.results.length) out.sources.emails = rows.results;
     }
   } catch (e) { out.sources.emails = [{ error: e.message }]; }
