@@ -4,6 +4,14 @@ Snapshots Roaming DeepChat settings/DB + canonical prompt stores and uploads to
 R2 qnfo-backups/deepchat/YYYY/MM/. Prints 'BACKUP OK' and exits 0 on success.
 Canonical: QNFO/qnfo-ops/scripts/backup_deepchat.py (mirrored .deepchat/scripts)
 
+v1.3 (2026-09-02, user directive): agent.db is pruned to SETTINGS-PRESERVING content before
+upload (backup_agentdb_chunked.py v1.1 prunes chat-thread CONTENT on the snapshot copy: messages,
+assistant blocks, tape, search docs, delegations + FTS; KEEPS app_settings/providers/models/agents/
+cron/mcp/sessions (per-thread settings)/usage/memory). Whole-DB backup is rejected as unsustainable
+(agent.db ~1.2 GB; chat threads expendable, their settings are not). Measured 1223.5 MB -> ~116 MB
+(90.5%%). The LIVE agent.db is never modified.
+
+
 v1.2 (2026-09-02): agent.db gap CLOSED - delegates to backup_agentdb_chunked.py (chunked REST parts + manifest) when > REST single-PUT limit. agent.db (~0.9 GB) exceeds the R2
 REST API single-PUT object limit (~100 MB; HTTP 413) and wrangler's 300 MiB cap.
 v1.0 failed the WHOLE backup when the agent.db PUT 413'd, which made closeouts
