@@ -1,6 +1,8 @@
 # QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem
 
 > Auto-generated 2026-09-02 06:17 UTC by the fleet self-documentation sweep.
+> Cycle-1 refresh 2026-09-02 ~19:20 UTC (QNFO.OPS.011): qnfo-ai 5.16.3, qnfo-intent-orchestrator 1.3.2,
+> qnfo-blank-audit 1.1.0, + qnfo-chat-canary 1.0.1 (behavioral chat canary + sent-guard).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
 ## Self-documentation policy (FLEET-SELF-DOC-1)
@@ -24,12 +26,13 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | personal-life-search | v1.2.3-env-secret | 2026-08-28 09:48:43 | - | - | GAP (no repo dir) |
 | qnfo-agent-orchestrator | v1.0.0 | 2026-09-01 09:55:40 | - | - | GAP (no repo dir) |
 | qnfo-agent-ws | 1.3.9 | 2026-08-14 14:50:27 | - | - | GAP (no repo dir) |
-| qnfo-ai | 5.14.0 | 2026-09-02 16:35:00 | qnfo-workers/qnfo-ai | 5.14.0 | OK |
+| qnfo-ai | 5.16.3 | 2026-09-02 19:16:00 | qnfo-workers/qnfo-ai | 5.16.3 | OK |
 | qnfo-ai-patch-test | NO-HEALTH | 2026-09-01 08:44:26 | - | - | GAP (no repo dir) |
 | qnfo-ai-search | 1.0.2 | 2026-08-12 06:30:11 | qnfo-workers/qnfo-ai-search | 1.0.2 | OK |
 | qnfo-archive | 1.2-cors-fixed | 2026-07-30 12:05:58 | - | - | GAP (no repo dir) |
 | qnfo-arxiv-radar | NO-HEALTH | 2026-09-01 18:02:45 | - | - | GAP (no repo dir) |
-| qnfo-blank-audit | 1.0.0 | 2026-09-02 14:06:12 | qnfo-workers/qnfo-blank-audit | 1.0.0 | OK |
+| qnfo-blank-audit | 1.1.0 | 2026-09-02 19:03:00 | qnfo-workers/qnfo-blank-audit | 1.1.0 | OK |
+| qnfo-chat-canary | 1.0.1 | 2026-09-02 19:13:00 | qnfo-workers/qnfo-chat-canary | 1.0.1 | OK |
 | qnfo-calibration-audit | NO-HEALTH | 2026-09-01 18:17:33 | - | - | GAP (no repo dir) |
 | qnfo-chat-canary | NO-HEALTH | 2026-09-02 19:07 | - | - | GAP (no repo dir) |
 | qnfo-citation-watch | NO-HEALTH | 2026-09-01 17:39:26 | - | - | GAP (no repo dir) |
@@ -45,7 +48,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-impact | 0.1.0 | 2026-09-01 09:56:57 | - | - | GAP (no repo dir) |
 | qnfo-indexnow-key | NO-HEALTH | 2026-08-14 06:59:33 | - | - | GAP (no repo dir) |
 | qnfo-infra | 1.5.0 | 2026-09-01 21:22:23 | qnfo-workers/qnfo-infra | 1.2.1 | DRIFT repo=1.2.1 |
-| qnfo-intent-orchestrator | 1.0.0 | 2026-08-28 09:50:14 | qnfo-workers/qnfo-intent-orchestrator | 1.1.0 | DRIFT repo=1.1.0 |
+| qnfo-intent-orchestrator | 1.3.2 | 2026-09-02 19:14:00 | qnfo-workers/qnfo-intent-orchestrator | 1.3.2 | OK |
 | qnfo-ipatent | 3.3 | 2026-08-04 17:47:46 | - | - | GAP (no repo dir) |
 | qnfo-kaizen | 0.2.0 | 2026-09-01 09:47:33 | - | - | GAP (no repo dir) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-01 07:12:40 | - | - | GAP (no repo dir) |
