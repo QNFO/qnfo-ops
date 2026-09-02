@@ -59,17 +59,27 @@ Cloudflare is canonical; local Windows state is an ephemeral, device-bound mirro
 
 DeepChat local cron canonical set (scheduler-guard PASS): 42b1988c (fleet drift, repo+wrangler),
 aa67d355 (Outlook COM freshness), c7f96688 (MCP token refresh), 2055e49c (one-shot 2026-11-06),
-6e91c844 (disk guard). Windows Task QNFO-AgentDB-Daily-Backup (daily 21:30, runs WITHOUT DeepChat
-open; agent.db + config -> R2 qnfo-backups). Wrapper embeds a CLOUDFLARE_API_TOKEN copy - see
-SECRETS-INVENTORY rotation note.
+6e91c844 (disk guard). Windows Tasks (run WITHOUT DeepChat open): QNFO-AgentDB-Daily-Backup
+(daily 21:30; agent.db + config -> R2 qnfo-backups; wrapper embeds CLOUDFLARE_API_TOKEN copy - see
+SECRETS-INVENTORY rotation note) and QNFO-ModelKey-Guard (daily 07:00; model_guard.py aligns
+preferredModel/defaultModel across agent.db app_settings + app-settings.json to deepseek-v4-flash,
+read-back verified; recurrence-zero remedy for MODEL-KEY-FILE-DRIFT-1, fixed a live v4-pro drift
+2026-09-02, commit 5374149).
 
-## Residual manual / user-side (owned, triggered, never silent)
+## Residual manual / user-side (owned, triggered, never silent) - resolved 2026-09-02
 
-GitHub org runners billing (user) · workers.dev routing 10405 token scope (token rotation
-opportunity) · personal .ics custom domain for public serving (cloud-able, planned) · email-key
-rotation coordination (write-only verification) · DeepChat app installs (device by design;
-release-check alerts). Each is surfaced by loose-threads-sweep / worker-health / weekly drift
-until closed; none rests with only an owner label.
+| Item | Resolution | Evidence |
+|---|---|---|
+| GitHub org runners billing | MOOT - sole workflow deploy-worker.yml deleted (4ce2f21); 0 workflows remain, no runner needed | qnfo-workers .github/workflows empty |
+| workers.dev routing 10405 | NOT NEEDED - obsidian-writer consumed only via service bindings (conference-radar/events-radar/personal-events-radar wrangler.toml); per-worker subdomain disabled is correct posture | subdomain API enabled:false + binding consumers |
+| personal .ics custom domain | SERVED - hourly R2 publish + public r2.dev bearer URLs verified 200 text/calendar; custom domain = optional enhancement (needs combined R2+Zone token) | calendar-api /health ics_publish + HTTP 200 probe |
+| email-key rotation coordination | VERIFIED WORKING - email_stats 197 sent/71 24h; briefing ok 06:30; outreach cap-guard acting as designed; errata auto-publish live | D1 job-run log + email_stats |
+| DeepChat app installs | device by design; release-check alerts (DEEPCHAT-RELEASE-TRACK-1) | release-check cron 15 4 * * * |
+
+Additionally closed same pass: worker-health .internal checks were broken by binding-stripping API
+PUTs - QNFO_AI + PERSONAL_API service bindings restored + keep_bindings guard added to deploy
+metadata (2fd4bef; active deployment a215d711 has 21 bindings). All items surfaced by
+loose-threads-sweep / worker-health / weekly drift until closed; none rests with only an owner label.
 
 ## Fleet self-doc status (2026-09-02 manifest, 52 workers)
 
@@ -87,5 +97,8 @@ repo==live. Concurrent-session dirt (qnfo-ai/worker.js, qnfo-pdf/) left untouche
 | Fleet self-doc + drift audit automatic | FLEET-MANIFEST.md auto-generated 2026-09-02 06:17Z; weekly cron 42b1988c | high | verified |
 | Loose threads under standing audit | loose-threads-sweep cron 0 5 * * 1 on qnfo-cloud-ops v1.8.1 (/health 2026-09-02) | high | verified |
 | Backup automatic without app open | schtasks QNFO-AgentDB-Daily-Backup Ready, next 21:30 2026-09-02 | high | verified |
+| Model-key drift guarded permanently | QNFO-ModelKey-Guard task (daily 07:00) + model_guard.py fixed live v4-pro re-drift 2026-09-02, read-back flash==flash | high | verified |
+| Worker-health .internal checks healthy | active deployment a215d711 21 bindings incl QNFO_AI->qnfo-ai + PERSONAL_API->personal-api; /health 1.8.1 16 jobs | high | verified |
+| GitHub-runner dependency eliminated | workflows=0 (deploy-worker.yml removed 4ce2f21); runner billing residue moot | high | verified |
 | Cost control active | infra_status AI Gateway spend_limit + gateway_logs cost_usd present | high | verified |
 | Residual manual items owned + triggered | loose-threads-sweep weekly digest + worker-health + drift audit (2026-09-02 doc) | medium | tracked |
