@@ -1,17 +1,17 @@
-# QNFO FLEET MANIFEST - Cloudflare Workers Ecosystem
+# QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem
 
-> Auto-generated 2026-09-01 21:29 UTC by the fleet self-documentation sweep. Living inventory;
-> the weekly Fleet Drift & Self-Improvement Audit cron re-generates it and flags drift.
+> Auto-generated 2026-09-02 06:17 UTC by the fleet self-documentation sweep.
+> Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
 ## Self-documentation policy (FLEET-SELF-DOC-1)
 
-Every worker MUST carry: (1) a VERSION constant reachable via /health; (2) a header comment with purpose, capabilities, deploy method, and Canonical source path; (3) a canonical repo dir under QNFO/qnfo-workers/<name> or QNFO/qnfo-ops/cloud/<name> with a deployed-current.worker.js that byte-matches the deployed bundle. Status: OK = all three; PARTIAL = versioned but not repo-synced; GAP = missing one or more.
+Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source; (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced; GAP = missing one or more.
 
 ## Fleet (48 workers)
 
 | Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |
 |---|---|---|---|---|---|
-| conference-radar | NO-HEALTH | 2026-09-01 11:56:47 | qnfo-workers/conference-radar | UNVERSIONED | PARTIAL (no /health) |
+| conference-radar | 1.1.0 | 2026-09-02 06:15:16 | qnfo-workers/conference-radar | 1.1.0 | OK |
 | job-market-watch | NO-HEALTH | 2026-09-01 11:28:57 | - | - | GAP (no repo dir) |
 | obsidian-writer | NO-HEALTH | 2026-09-01 11:11:34 | - | - | GAP (no repo dir) |
 | osf-integrity-check | NO-HEALTH | 2026-09-01 11:56:24 | - | - | GAP (no repo dir) |
@@ -52,24 +52,24 @@ Every worker MUST carry: (1) a VERSION constant reachable via /health; (2) a hea
 | qnfo-research-radar | NO-HEALTH | 2026-09-01 17:45:42 | - | - | GAP (no repo dir) |
 | qnfo-secrets-audit | NO-HEALTH | 2026-09-01 18:14:38 | - | - | GAP (no repo dir) |
 | qnfo-skill-sync | v1.1.2 | 2026-08-21 08:18:46 | - | - | GAP (no repo dir) |
-| qnfo-skills-discovery | NO-HEALTH | 2026-08-11 15:12:02 | - | - | GAP (no repo dir) |
-| qnfo-social | True | 2026-08-31 21:22:13 | qnfo-workers/qnfo-social | UNVERSIONED | DRIFT repo=UNVERSIONED |
+| qnfo-skills-discovery | 1.1.0 | 2026-09-02 06:15:59 | - | - | GAP (no repo dir) |
+| qnfo-social | NO-HEALTH | 2026-08-31 21:22:13 | qnfo-workers/qnfo-social | UNVERSIONED | GAP (no /health) |
 | qnfo-system-health | NO-HEALTH | 2026-09-01 17:48:38 | - | - | GAP (no repo dir) |
 | qnfo-thread-ingest | 1.0.0 | 2026-08-28 11:59:50 | - | - | GAP (no repo dir) |
 | qnfo-tools-mcp | 1.1.0 | 2026-08-28 11:06:31 | qnfo-workers/qnfo-tools-mcp | 1.1.0 | OK |
 | qnfo-twin-maintain | NO-HEALTH | 2026-09-01 07:50:03 | - | - | GAP (no repo dir) |
-| research-daily-brief | True | 2026-09-01 09:27:32 | - | - | GAP (no repo dir) |
+| research-daily-brief | NO-HEALTH | 2026-09-01 09:27:32 | - | - | GAP (no repo dir) |
 
 ## Summary
 
 - Total workers: 48
-- Self-doc OK: 5
-- Drift/partial/gap: 43
-- NO-HEALTH rows are expected for cron-only utility workers (no HTTP surface).
+- Self-doc OK: 6
+- Drift: 4
+- GAP/PARTIAL: 38
 
 ## Self-improvement loop
 
-1. Fleet Drift & Self-Improvement Audit cron (weekly): re-runs this sweep, logs drift to qnfo-audit D1, repairs where the fix is a documented one-liner (wrangler deploy from canonical repo).
-2. AI Worker Health + Provider Config Guard cron (every 3h): probes qnfo-ai + personal-api chat paths and DeepChat provider config.
-3. QNFO Data Freshness Sync cron (every 6h): keeps Vectorize fresh with calendar + email.
-4. Kaizen cycles (CMD SKILLS UPDATE): every session lesson becomes a named gate in skills + system prompt (dual-written, parity-verified).
+1. Fleet Drift & Self-Improvement Audit cron (weekly): re-runs sweep, logs drift, repairs via wrangler redeploy.
+2. AI Worker Health + Provider Config Guard cron (every 3h): probes qnfo-ai + personal-api chat paths.
+3. QNFO Data Freshness Sync cron (every 6h): calendar + email to Vectorize.
+4. Kaizen cycles: every lesson becomes a named gate, dual-written. OPS-SELF-DOC.md is the master index.
