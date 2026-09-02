@@ -10,7 +10,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.7.0";
+const VERSION = "1.7.1";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -158,7 +158,7 @@ const AMS_SCHEDULE = {
   "outreach":       { times: ["11:00"], days: "1-5", fixed: null },
   "nlnet":          { times: ["11:00"], days: null,  fixed: { dom: 3, mon: 9 } },
   "worker-health":  { times: ["05:05", "17:05"], days: "*",   fixed: null },
-  "sitemap-ping":   { times: ["06:00"], days: null,  fixed: { dom: 1, mon: null } },
+  "sitemap-ping":   { times: ["06:00"], days: null,  fixed: { dom: 1, mon: "*" } },
 };
 
 // Build cron strings (UTC) for a given Amsterdam UTC offset in hours (+2 CEST, +1 CET).
