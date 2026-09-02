@@ -72,7 +72,7 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 - Health: GET https://qnfo-auditor.q08.workers.dev/health (public; shows version + bindings)
 - Manual pass: POST /v1/run with {"mode":"standard"|"deep"} (Bearer AUDITOR_TOKEN)
 - Inspect: GET /v1/runs?limit=20 | GET /v1/state (open ledger + candidates)
-- Secrets: AUDITOR_TOKEN (also in .deepchat secrets store + SECRETS-INVENTORY), DIGEST_TO (rwnquni@outlook.com)
+- Secrets: AUDITOR_TOKEN (also in .deepchat secrets store + SECRETS-INVENTORY), DIGEST_TO (alerts@qnfo.org sink - user directive 2026-09-02: digests NEVER email personal-domain recipients; the domain sink is machine-consumed, matching cloud scheduler f2802f3)
 - Deploy: wrangler deploy from qnfo-workers/qnfo-auditor; then cp worker.js deployed-current.worker.js
 - Data: qnfo-audit D1 - fleet_audit_runs, kaizen_candidates (auto-created IF NOT EXISTS)
 
@@ -88,7 +88,7 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 |---|---|---|---|
 | Worker deployed with D1 + send_email + both crons | wrangler deploy 2026-09-02: v1.0.0 Version ID 5e35a0f9-1f60-4c92-892c-5c23380578c7; v1.0.1 deployment 0fd99baf-ed6b-464c-a799-2c9436e6c8e2 (20:46:46Z); schedules 45 1,13 * * * + 45 6 * * 1 | high | verified |
 | /health live | curl 200: worker qnfo-auditor, version 1.0.0, audit true, sendEmail true, token true | high | verified |
-| Secrets set | CF API PUT 201 AUDITOR_TOKEN + DIGEST_TO; GET list shows both | high | verified |
+| Secrets set | CF API PUT 201 AUDITOR_TOKEN + DIGEST_TO (alerts@qnfo.org sink per directive); GET list shows both | high | verified |
 | Live standard pass works | POST /v1/run run audit-2026-09-02T20-41-49-443Z: findings 2 (C5 sweep-lag, C7 errata-stuck), email sent with messageId | high | verified |
 | Run record persisted | D1 fleet_audit_runs row with findings JSON | high | verified |
 | Ledger action visible | D1 issue_ledger: errata/stuck HIGH #3 + auditor/pipeline warning created | high | verified |
@@ -98,5 +98,5 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 
 ## 11. Version history
 
-- v1.0.1 (2026-09-02) - added C10 resolve-on-recovery (job resumed / errata terminal / agent_issue closed auto-close). Lesson recorded: a wrangler deploy can drop secrets set via the CF API - re-assert after every deploy (README).
+- v1.0.1 (2026-09-02) - added C10 resolve-on-recovery (job resumed / errata terminal / agent_issue closed auto-close). Lesson recorded: a wrangler deploy can drop secrets set via the CF API - re-assert after every deploy (README). DIGEST_TO re-pointed to alerts@qnfo.org sink (user directive: no personal-domain digest recipients; initial test digests to own mailbox were before directive awareness - corrected).
 - v1.0.0 (2026-09-02) - initial implementation: C1-C9, runbook, crons, secrets, deploy, live verification.
