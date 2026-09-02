@@ -9,7 +9,7 @@
 
 Every QNFO component writes events/logs (scheduler job events, alerts, issue ledger, agent-issue tracker, audit trail, deployment history, errata queue, kaizen reports). What was missing is a standing procedure that systematically REVIEWS every store, AUDITS against invariants, ACTS to keep the estate healthy, and LEARNS (feeds continuous improvement) - with no user and no in-app session required.
 
-This runbook defines that procedure. It is executed by the qnfo-auditor worker (v1.0.0) on a fixed schedule and on demand via its API. Deterministic checks C1-C9 below are the procedure body.
+This runbook defines that procedure. It is executed by the qnfo-auditor worker (v1.0.1) on a fixed schedule and on demand via its API. Deterministic checks C1-C10 below are the procedure body.
 
 ## 2. Inputs (every event/log source reviewed)
 
@@ -45,6 +45,7 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 | C7 | Errata stuck | errata_queue non-terminal >24h | ledger HIGH (errata/stuck) | high |
 | C8 | Kaizen feed | recurrence-after-resolve >=2 / event cluster >=5 in 7d | kaizen_candidates upsert; promote mature >7d to ledger | - |
 | C9 | Digest state machine | new HIGH or count increase (standard) / always (deep) | email digest + persist open-HIGH fps | - |
+| C10 | Resolve-on-recovery | open ledger entry whose underlying source condition cleared (job resumed / errata row terminal / agent_issue closed) | resolve with evidence note (closes the loop after C4/C6/C7) | - |
 
 ## 5. Cadence (crons on qnfo-auditor, UTC)
 
@@ -58,6 +59,7 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 - HIGH/CRITICAL entries are never auto-closed. They stay visible in the ledger/digest until an agent/ops cycle resolves them with evidence (same philosophy as loose-threads-sweep verified-resolved rows).
 - Email is a last resort: digest only per section 3 step 5. Store-first, email-only-when-needed (ADR storage/events architecture 2026-09-02).
 - Every mutation is recorded: resolved/reopened to last_detail note; ledger inserts to issue_events row; run digest to fleet_audit_runs JSON.
+- C10 closes the loop the other direction: entries opened by C4/C6/C7 are auto-resolved (with evidence) when the underlying condition clears - the ledger never accumulates stale HIGH entries whose cause is gone. HIGH entries whose cause persists stay open and stay visible in the digest.
 
 ## 7. Self-awareness and continuous improvement
 
@@ -84,7 +86,7 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 
 | claim | evidence | confidence | status |
 |---|---|---|---|
-| Worker deployed with D1 + send_email + both crons | wrangler deploy 2026-09-02: Version ID 5e35a0f9-1f60-4c92-892c-5c23380578c7; schedules 45 1,13 * * * + 45 6 * * 1 | high | verified |
+| Worker deployed with D1 + send_email + both crons | wrangler deploy 2026-09-02: v1.0.0 Version ID 5e35a0f9-1f60-4c92-892c-5c23380578c7; v1.0.1 deployment 0fd99baf-ed6b-464c-a799-2c9436e6c8e2 (20:46:46Z); schedules 45 1,13 * * * + 45 6 * * 1 | high | verified |
 | /health live | curl 200: worker qnfo-auditor, version 1.0.0, audit true, sendEmail true, token true | high | verified |
 | Secrets set | CF API PUT 201 AUDITOR_TOKEN + DIGEST_TO; GET list shows both | high | verified |
 | Live standard pass works | POST /v1/run run audit-2026-09-02T20-41-49-443Z: findings 2 (C5 sweep-lag, C7 errata-stuck), email sent with messageId | high | verified |
@@ -96,4 +98,5 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 
 ## 11. Version history
 
+- v1.0.1 (2026-09-02) - added C10 resolve-on-recovery (job resumed / errata terminal / agent_issue closed auto-close). Lesson recorded: a wrangler deploy can drop secrets set via the CF API - re-assert after every deploy (README).
 - v1.0.0 (2026-09-02) - initial implementation: C1-C9, runbook, crons, secrets, deploy, live verification.

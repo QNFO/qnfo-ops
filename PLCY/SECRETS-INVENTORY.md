@@ -40,6 +40,8 @@ C:/Users/LENOVO/Documents/GitHub/qnfo-ops/PLCY/SECRETS-INVENTORY.md [chars 0-450
 | CF_API_TOKEN | qnfo-ai, qnfo-agent-ws, qnfo-lifecycle | — | CLOUDFLARE_API_TOKEN | 4 places ✓ |
 | CF_TOKEN | qnfo-cloud-ops, qnfo-intent-orchestrator, qnfo-personal-api, qnfo-infra | — | — | 4 cloud places ✓ |
 | INFRA_TOKEN | qnfo-ai, qnfo-infra, qnfo-cloud-ops, qnfo-tools-mcp, personal-api | — | — | 5 cloud places ✓ |
+| AUDITOR_TOKEN | qnfo-auditor (ADDED 2026-09-02) | .deepchat/secrets/qnfo-auditor-token.txt | — | 2 places ✓ |
+| DIGEST_TO | qnfo-auditor (ADDED 2026-09-02) | — | — | 1 cloud place (audit digest email target; low sensitivity) |
 | INDEXNOW_KEY | qnfo-idea-triage | — | — | public key file on papers.qnfo.org (inherently public) |
 | MCP_TOKEN | qnfo-tools-mcp | — | — | single place — RECOVERY = regenerate + update MCP config |
 | ERRATA_TOKEN | qnfo-errata-publish/respond/watch | — | — | 3 places ✓ |
