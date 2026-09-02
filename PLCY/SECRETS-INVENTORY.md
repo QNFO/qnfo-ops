@@ -10,6 +10,7 @@ C:/Users/LENOVO/Documents/GitHub/qnfo-ops/PLCY/SECRETS-INVENTORY.md [chars 0-450
 - **Canonical runtime store = Cloudflare Worker Secrets** (write-only; workers access via env.X).
 - **Ops backup = C:/Users/LENOVO/.qnfo/<name>** files, ACL-restricted to the user account (icacls /inheritance:r /grant:r LENOVO\\LENOVO:(OI)(CI)F), used ONLY by operator sessions for wrangler secret put / recovery.
 - **Env vars** (Git Bash session): CLOUDFLARE_API_TOKEN + R2 keys + GITHUB_TOKEN + ZENODO_TOKEN etc. are the operator toolchain; they back the worker secrets (2nd/3rd redundant copy).
+- **Windows Task copy (2026-09-02)**: C:/Users/LENOVO/.deepchat/secrets/run-backup-daily.cmd (drives scheduled task QNFO-AgentDB-Daily-Backup, daily 21:30) embeds CLOUDFLARE_API_TOKEN - UPDATE THIS COPY ON ROTATION alongside the env var.
 - Rotation NEVER rotates a single location: rotate value -> set on ALL workers holding it -> update ALL local copies -> live-probe the consumer (INTENT-TOKEN-ROTATION-1).
 
 ## 2. Token matrix (locations; values never shown)
