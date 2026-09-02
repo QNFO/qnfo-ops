@@ -13,17 +13,18 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 |---|---|---|---|---|---|
 | conference-radar | 1.2.0 | 2026-09-02 09:52:41 | qnfo-workers/conference-radar | 1.2.0 | OK (SUPERSEDED by events-radar 2026-09-02) |
 | events-radar | 1.0.0 | 2026-09-02 10:51:19 | qnfo-workers/events-radar | 1.0.0 | OK |
+| calendar-api | 0.2.1 | 2026-09-02 16:30:00 | qnfo-workers/calendar | 0.2.1 | OK |
 | personal-events-radar | 1.2.3 | 2026-09-02 16:10:00 | qnfo-workers/personal-events-radar | 1.2.3 | OK |
 | job-market-watch | NO-HEALTH | 2026-09-01 11:28:57 | - | - | GAP (no repo dir) |
 | obsidian-writer | NO-HEALTH | 2026-09-01 11:11:34 | - | - | GAP (no repo dir) |
 | osf-integrity-check | NO-HEALTH | 2026-09-01 11:56:24 | - | - | GAP (no repo dir) |
-| personal-api | v1.6.1 | 2026-09-01 09:20:10 | - | - | GAP (no repo dir) |
+| personal-api | v2.1.1 | 2026-09-02 16:40:00 | qnfo-workers/personal-api | v2.1.1 | OK |
 | personal-life-indexer | v2.5-index-auth | 2026-08-20 17:19:11 | - | - | GAP (no repo dir) |
 | personal-life-maintain | NO-HEALTH | 2026-09-01 07:27:59 | - | - | GAP (no repo dir) |
 | personal-life-search | v1.2.3-env-secret | 2026-08-28 09:48:43 | - | - | GAP (no repo dir) |
 | qnfo-agent-orchestrator | v1.0.0 | 2026-09-01 09:55:40 | - | - | GAP (no repo dir) |
 | qnfo-agent-ws | 1.3.9 | 2026-08-14 14:50:27 | - | - | GAP (no repo dir) |
-| qnfo-ai | 5.11.0 | 2026-09-01 21:18:52 | qnfo-workers/qnfo-ai | 5.11.0 | OK |
+| qnfo-ai | 5.14.0 | 2026-09-02 16:35:00 | qnfo-workers/qnfo-ai | 5.14.0 | OK |
 | qnfo-ai-patch-test | NO-HEALTH | 2026-09-01 08:44:26 | - | - | GAP (no repo dir) |
 | qnfo-ai-search | 1.0.2 | 2026-08-12 06:30:11 | qnfo-workers/qnfo-ai-search | 1.0.2 | OK |
 | qnfo-archive | 1.2-cors-fixed | 2026-07-30 12:05:58 | - | - | GAP (no repo dir) |
