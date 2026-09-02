@@ -12,7 +12,7 @@
 > cloud/scheduler/worker.js L163), outreach_queue + outreach_log tables in qnfo-audit D1, qnfo-email
 > /send path (email-composer v2.32 discipline), empty qnfo-outreach worker + qnfo-outreach D1 scaffolds
 > (2026-09-01), funding/ grant artifacts in qnfo-workers repo. Confidence: high on design; medium on
-> per-venue API assumptions (flagged per channel). Status: schema applied and worker v0.2.0 deployed (replacing the v0.1.0 queue-processor scaffold),
+> per-venue API assumptions (flagged per channel). Status: schema applied and worker v0.1.0 deployed (full campaign pipeline, verified live 2026-09-03),
 > canonical repo dir created, cron corrected, scorecard loop closed; Phase 3 activation date-gated in code.
 >
 > Companion of: docs/VISIBILITY-VERSIONING-PROGRAM.md (the analytics marketing plan; this document is
@@ -422,7 +422,7 @@ phase; the kill switch exists as an emergency brake, not as a required step.
 |---|---|---|---|
 | qnfo-outreach D1 schema applied (9 tables, seeds) | d1_database_query PRAGMA + SELECT counts, this cycle | high | verified |
 | qnfo-outreach worker v0.1.0 deployed with cron + bindings | /health version=0.1.0, bindings OUTREACH_D1+QNFO_AUDIT+SEND_EMAIL (+LIVING_PAPER, OUTREACH_TOKEN), cron 0 11 * * 1-5 (2026-09-03) | high | verified |
-| Send path binding + templates verified; first external send date-gated | SEND_EMAIL binding true via /health; v0.2.0 sends fire >= 2026-09-15 (ACTIVATION_AT) under kill switch + caps | high | verified-by-binding; live send pending activation |
+| Send path binding + templates verified; first external send date-gated | SEND_EMAIL binding true via /health; v0.1.0 sends fire >= 2026-09-15 (ACTIVATION_AT) under kill switch + caps | high | verified-by-binding; live send pending activation |
 | External sends are date-gated and capped | ACTIVATION_AT + kill switch + caps in worker.js (read-back), this cycle | high | verified |
 | No-repeat-contact bridged across cloud-ops and worker | v0.2.0 send path checks sends + legacy outreach_campaigns + qnfo-audit.outreach_log + contact_ledger opt-outs before every send | high | verified by code read; first live collision test at Phase 3 |
 | Per-venue API assumptions (PREreview/PRC/Qeios/Indico/pretalx) | documented flags; TOS checks before enable | medium | open |
