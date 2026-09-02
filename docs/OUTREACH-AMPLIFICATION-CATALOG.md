@@ -4,7 +4,7 @@
 >
 > Claim: beyond the eight audiences and thirteen channel items already listed in
 > OUTREACH-AUTOMATION-STRATEGY.md sections 3 and 4b, there is a further catalog of ~18 reachable
-> human segments and ~25 automatable communication modes, each 100% cloud-native, TOS-tiered, and
+> human segments and ~24 automatable communication modes, each 100% cloud-native, TOS-tiered, and
 > open-science aligned, that materially extends visibility/reach/impact of the corpus without paid
 > venues and without gatekeeping.
 >
@@ -17,6 +17,10 @@
 >
 > Companion of: docs/OUTREACH-AUTOMATION-STRATEGY.md (this document is the completeness expansion of
 > its section 3 + section 4b). Does NOT supersede it. Does NOT add skills (NO-MORE-SKILLS-1).
+
+Consolidation note: about six items here restate strategy 4b for completeness (ORCID, Software
+Heritage, PapersWithCode, newsletter submissions, podcast pitch, awards radar); the remaining ~18
+modes and all 18 audience segments are new. Nothing is enabled by this document alone.
 
 ---
 
@@ -60,6 +64,9 @@ activation date (2026-09-15) and the per-channel TOS gate clears.
 Exclusions (restated, not re-argued): Wikipedia (COI), Reddit/Stack Exchange posting (self-promotion
 rules - answers with disclosure only), SSRN/Hackernoon/F1000Research/traditional journals (paid or
 gatekeeping), citation-trading / reciprocal-promotion (fabrication-adjacent).
+Also out of scope (documented, not deferred): paid press wires (EurekAlert needs institutional
+sponsorship, PR Newswire is paid) and human-produced video/audio (the automatable path is the RSS
+feed + pitch that reach those producers).
 
 ## 3. WHAT OTHER KINDS — communication-mode expansion
 
@@ -144,7 +151,7 @@ token, or worker step date-gated behind the parent strategy's activation.
 | Claim | Evidence | Confidence | Status |
 |---|---|---|---|
 | 18 additional reachable audience segments beyond strategy section 3 | gap analysis vs full automatable surface, this cycle | high | documented |
-| 25 additional communication modes beyond strategy 4b | mechanism inventory across pull/push/passive/regulatory, this cycle | high on mechanism, medium on per-platform TOS | documented |
+| 24 additional communication modes beyond strategy 4b | mechanism inventory across pull/push/passive/regulatory, this cycle | high on mechanism, medium on per-platform TOS | documented |
 | Catalog seeded to D1 submissions as planned rows | INSERT with sentinel guard + COUNT readback, this cycle | high | verified |
 | Zero channels enabled; activation date-gated | parent strategy rollout + tier gates; no send path invoked | high | verified |
 | Per-platform TOS assumptions (Green500/MLPerf/PubPeer/meetup) | flagged AMBER; checks recorded before enable | medium | open |
