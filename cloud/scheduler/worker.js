@@ -10,7 +10,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.8.0";
+const VERSION = "1.8.1";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -773,6 +773,9 @@ async function jobLooseThreadsSweep(env) {
       "SELECT h.project_id, h.pending_work, h.timestamp FROM handoffs h " +
       "WHERE h.timestamp = (SELECT MAX(h2.timestamp) FROM handoffs h2 WHERE h2.project_id = h.project_id) " +
       "AND h.pending_work IS NOT NULL AND TRIM(h.pending_work) != '' " +
+      "AND LOWER(TRIM(h.pending_work)) NOT LIKE 'none%' " +
+      "AND LOWER(TRIM(h.pending_work)) NOT LIKE 'zero deferred%' " +
+      "AND LOWER(TRIM(h.pending_work)) NOT LIKE '0 deferred%' " +
       "AND h.timestamp < datetime('now', '-7 days') " +
       "ORDER BY h.timestamp ASC LIMIT 40"
     ).all();
