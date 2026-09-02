@@ -39,7 +39,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-citation-watch | NO-HEALTH | 2026-09-01 17:39:26 | - | - | GAP (no repo dir) |
 | qnfo-cloud-ops | 1.6.0 | 2026-09-01 17:41:20 | qnfo-workers/qnfo-cloud-ops | 1.5.0 | DRIFT repo=1.5.0 |
 | qnfo-events | 1.0.2 | 2026-09-02 19:57 UTC | qnfo-workers/qnfo-events | 1.0.2 | OK |
-| qnfo-auditor | 1.1.0 | 2026-09-02 21:00 UTC | qnfo-workers/qnfo-auditor | 1.1.0 | OK |
+| qnfo-auditor | 1.1.1 | 2026-09-02 21:02 UTC | qnfo-workers/qnfo-auditor | 1.1.1 | OK |
 | qnfo-email | NO-HEALTH | 2026-08-31 21:22:10 | - | - | GAP (no repo dir) |
 | qnfo-email-orchestrator | 0.3.3 | 2026-09-01 12:06:53 | qnfo-workers/qnfo-email-orchestrator | 0.3.3 | OK |
 | qnfo-errata-publish | 0.6.0 | 2026-08-28 16:29:36 | - | - | GAP (no repo dir) |

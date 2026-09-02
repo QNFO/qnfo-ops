@@ -9,7 +9,7 @@
 
 Every QNFO component writes events/logs (scheduler job events, alerts, issue ledger, agent-issue tracker, audit trail, deployment history, errata queue, kaizen reports). What was missing is a standing procedure that systematically REVIEWS every store, AUDITS against invariants, ACTS to keep the estate healthy, and LEARNS (feeds continuous improvement) - with no user and no in-app session required.
 
-This runbook defines that procedure. It is executed by the qnfo-auditor worker (v1.1.0) on a fixed schedule and on demand via its API. Deterministic checks C1-C10 plus feedback subloops F1-F4 below are the procedure body.
+This runbook defines that procedure. It is executed by the qnfo-auditor worker (v1.1.1) on a fixed schedule and on demand via its API. Deterministic checks C1-C10 plus feedback subloops F1-F4 below are the procedure body.
 
 ## 2. Inputs (every event/log source reviewed)
 
@@ -103,6 +103,7 @@ This runbook defines that procedure. It is executed by the qnfo-auditor worker (
 
 ## 11. Version history
 
+- v1.1.1 (2026-09-02) - F2 robustness: promotion title embeds [candidate-id] (survives agent note overwriting last_detail); recurring-finding candidates verified by the auditor future finding trend. Live version ID ed623e4d-0b77-4c4c-b972-d908a7661e6c.
 - v1.1.0 (2026-09-02) - feedback loops + subloops (user addendum): F1 subloop supervision heartbeats (events-feed <30h, kaizen <4d), F2 improvement-effectiveness verification (verified_effective/ineffective), F3 self-trend (recurring-finding candidates + digest trend), F4 remediation watchdog (live /health re-probe resolves stale worker-health rows naming qnfo-ai/personal-api). Fixes v1.0.2 scope bug (upsertCandidate referenced runAudit-local cut7d -> C8 error, mature kaizen promotion dead). Live version ID b4a7ce45-11ce-4641-94a0-bfb8f6f728c8.
 - v1.0.2 (2026-09-02) - red-team hardening (reviewer PASS-WITH-NOTES addressed): all ISO-8601 column time-window cutoffs now use JS-computed ISO bounds (eliminates SQLite space-format literal mixing boundary skew in C1/C2/C4/C5/C8 + mature-promotion); auth fail-closed when AUDITOR_TOKEN unset. Live version ID 8de67ac8-907e-4a70-8b64-0ec5978eb58c.
 - v1.0.1 (2026-09-02) - added C10 resolve-on-recovery (job resumed / errata terminal / agent_issue closed auto-close). Lesson recorded: a wrangler deploy can drop secrets set via the CF API - re-assert after every deploy (README). DIGEST_TO re-pointed to alerts@qnfo.org sink (user directive: no personal-domain digest recipients; initial test digests to own mailbox were before directive awareness - corrected).
