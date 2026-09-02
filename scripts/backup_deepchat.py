@@ -3,6 +3,18 @@
 Snapshots Roaming DeepChat settings/DB + canonical prompt stores and uploads to
 R2 qnfo-backups/deepchat/YYYY/MM/. Prints 'BACKUP OK' and exits 0 on success.
 Canonical: QNFO/qnfo-ops/scripts/backup_deepchat.py (mirrored .deepchat/scripts)
+
+v1.1 (2026-09-02): graceful agent.db handling. agent.db (~0.9 GB) exceeds the R2
+REST API single-PUT object limit (~100 MB; HTTP 413) and wrangler's 300 MiB cap.
+v1.0 failed the WHOLE backup when the agent.db PUT 413'd, which made closeouts
+report "backup complete" as FALSE while the 5 config-state files had actually
+uploaded. v1.1 uploads the 5 config-state files, then for agent.db: if it exceeds
+the deterministic REST limit it is SKIPPED with an explicit reason (not an error),
+or on HTTP 413 it is converted to a skip. Output is BACKUP OK (full), BACKUP
+PARTIAL (config-state ok, agent.db skipped with reason), or BACKUP ERROR (a
+config-state file failed). Exit 0 for OK/PARTIAL, 1 for ERROR/missing token.
+Closing the agent.db gap needs S3-compatible multipart upload
+(R2_S3_ACCESS_KEY_ID/R2_S3_SECRET_ACCESS_KEY + endpoint, not provisioned).
 """
 import os, sys, json, time, io, shutil, urllib.request, urllib.error, sqlite3
 
@@ -13,6 +25,7 @@ ROAM = r'C:/Users/LENOVO/AppData/Roaming/DeepChat'
 HOMEDEEP = r'C:/Users/LENOVO/.deepchat'
 STAMP = time.strftime('%Y%m%d-%H%M%S')
 PREFIX = 'deepchat/' + time.strftime('%Y/%m') + '/'
+REST_SINGLE_PUT_LIMIT = 95 * 1024 * 1024  # conservative vs ~100 MB REST cap
 
 FILES = [
     (os.path.join(ROAM, 'app-settings.json'), 'app-settings.json'),
@@ -36,6 +49,7 @@ def main():
         return 1
     uploaded = []
     errors = []
+    skipped = []
     for src, name in FILES:
         key = PREFIX + STAMP + '/' + name
         try:
@@ -47,9 +61,10 @@ def main():
                 errors.append(name + ': upload failed')
         except Exception as e:
             errors.append(name + ': ' + type(e).__name__ + ' ' + str(e)[:150])
-    # DB snapshot (sqlite backup) -> temp then upload
+    # DB snapshot (sqlite backup) -> temp then upload; graceful on size/413
     db_src = os.path.join(ROAM, 'app_db', 'agent.db')
     db_tmp = os.path.join(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp'), 'agent-snapshot-' + STAMP + '.db')
+    db_skip_reason = None
     try:
         src_conn = sqlite3.connect(db_src, timeout=30)
         dst_conn = sqlite3.connect(db_tmp)
@@ -58,19 +73,37 @@ def main():
         key = PREFIX + STAMP + '/agent.db'
         with open(db_tmp, 'rb') as f:
             data = f.read()
-        if upload(key, data):
-            uploaded.append('agent.db (' + str(round(len(data)/1048576,1)) + ' MB)')
+        size_mb = round(len(data)/1048576, 1)
+        if len(data) > REST_SINGLE_PUT_LIMIT:
+            db_skip_reason = f'agent.db ({size_mb} MB) exceeds R2 REST single-PUT limit (~100 MB, HTTP 413); needs S3 multipart (creds not provisioned)'
         else:
-            errors.append('agent.db: upload failed')
+            try:
+                if upload(key, data):
+                    uploaded.append('agent.db (' + str(size_mb) + ' MB)')
+                else:
+                    errors.append('agent.db: upload failed')
+            except urllib.error.HTTPError as he:
+                if he.code == 413:
+                    db_skip_reason = f'agent.db ({size_mb} MB) HTTP 413 above R2 REST single-PUT limit; needs S3 multipart (creds not provisioned)'
+                else:
+                    errors.append('agent.db: HTTP ' + str(he.code))
         try: os.remove(db_tmp)
         except Exception: pass
     except Exception as e:
         errors.append('agent.db: ' + type(e).__name__ + ' ' + str(e)[:150])
+    if db_skip_reason:
+        skipped.append(db_skip_reason)
     if errors:
         for e in errors:
             print('[BACKUP-ERROR] ' + e)
         print('BACKUP ERROR: ' + str(len(errors)) + ' failure(s)')
         return 1
+    if skipped:
+        for s in skipped:
+            print('[BACKUP-SKIPPED] ' + s)
+        print('BACKUP PARTIAL (' + str(len(uploaded)) + ' config-state files -> R2 ' + BUCKET + '/' + PREFIX + STAMP + '): ' + ', '.join(uploaded))
+        print('agent.db NOT backed up this run; agent.db gap OPEN until S3 multipart is provisioned.')
+        return 0
     print('BACKUP OK (' + str(len(uploaded)) + ' files -> R2 ' + BUCKET + '/' + PREFIX + STAMP + '): ' + ', '.join(uploaded))
     return 0
 
