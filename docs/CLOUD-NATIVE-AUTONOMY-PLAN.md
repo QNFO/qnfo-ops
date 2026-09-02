@@ -19,7 +19,7 @@ Cloudflare is canonical; local Windows state is an ephemeral, device-bound mirro
 | qnfo-twin-maintain | 0 4 * * * | twin maintenance |
 | qnfo-skill-sync | 0 3 * * * | skills repo -> R2 mirror |
 | qnfo-lifecycle | hourly + monthly | lifecycle ops |
-| qnfo-blank-audit | 40 4 * * * | blank/fallback gateway audit |
+| qnfo-blank-audit | 40 4 * * * (verified) | blank/fallback gateway audit |
 | edge idea intake | event | ChatBox/Android -> qnfo-ai -> glm intent classifier -> orchestrator |
 
 ## Layer 1 — Auditing / monitoring
@@ -71,11 +71,18 @@ rotation coordination (write-only verification) · DeepChat app installs (device
 release-check alerts). Each is surfaced by loose-threads-sweep / worker-health / weekly drift
 until closed; none rests with only an owner label.
 
+## Fleet self-doc status (2026-09-02 manifest, 52 workers)
+
+~25 workers are GAP (no canonical repo dir or NO-HEALTH) - tracked by the weekly Fleet Drift audit
+(42b1988c) for incremental conversion; the fleet-manifest-sweep re-generates FLEET-MANIFEST.md each
+week. qnfo-cloud-ops mirror in qnfo-workers synced to v1.8.1 (b7e2065) so the next regeneration shows
+repo==live. Concurrent-session dirt (qnfo-ai/worker.js, qnfo-pdf/) left untouched per GIT-OWNERSHIP-1.
+
 ## Claims & Evidence (FRAMEWORK-DOGFOOD-1)
 
 | claim | evidence | confidence | status |
 |---|---|---|---|
-| Cloud execution layer fires unattended | D1 cloud_ops_events job-run n>10 across 7 jobs in 48h (2026-09-02 probe) | high | verified |
+| Cloud execution layer fires unattended | D1 cloud_ops_events: 10 job/status groups across 7 jobs in 48h (briefing/email-triage/gmail-triage/outreach/release-check/research-scan/worker-health) (2026-09-02 probe) | high | verified |
 | Worker cron map live | CF schedules API: errata :00/:15/:30, arxiv-radar 30 8, citation-watch 0 11 1,15, kaizen 0 2+0 10 Mon, twin-maintain 0 4, skill-sync 0 3, system-health 0 5, research-radar monthly+Sun, lifecycle hourly (2026-09-02 probe) | high | verified |
 | Fleet self-doc + drift audit automatic | FLEET-MANIFEST.md auto-generated 2026-09-02 06:17Z; weekly cron 42b1988c | high | verified |
 | Loose threads under standing audit | loose-threads-sweep cron 0 5 * * 1 on qnfo-cloud-ops v1.8.1 (/health 2026-09-02) | high | verified |
