@@ -185,6 +185,18 @@ Each distribution event = one factual social post (existing qnfo-social/Buffer) 
 7. Monthly opt-in newsletter: subscribe endpoint on the website -> D1 -> monthly digest cron (only to
    subscribers; unsubscribe honored; digests never to personal inboxes).
 8. Software/SWH archival + citation file updates (CITATION.cff) on each release.
+9. Google Scholar: monitor-only (profile discovery happens via ORCID + Zenodo indexing; no API for
+   self-deposit - the ORCID auto-update in item 6 is the lever).
+10. Conference talk/paper submissions: EasyChair has no public submission API - prepare the package
+   and submit by email EOI where the CFP allows; Indico/pretalx API paths stay the automatable
+   route (item 4).
+11. Owned-media blog/news channel on papers.qnfo.org (rendered from D1 like the paper pages):
+   weekly technical posts reusing paper deltas; owner = qnfo-gateway next revision, trigger =
+   funnel gate (>=50 honest /papers/* req/day).
+12. Awards / open-science prizes radar: folded into the funding radar cron (same grants.gov + RSS
+   sources, keyword match on 'prize/award') - outputs submissions rows kind=award_eoi.
+13. Explicit exclusion: never solicit citations or reciprocal promotion in any outreach (citation
+   trading is fabrication-adjacent); citations come only from merit + discoverability.
 
 ## 5. Automation architecture
 
@@ -382,8 +394,8 @@ Rowan Brad Quni-Gudzinas, QNFO"
 
 | Phase | Date (UTC) | What fires automatically |
 |---|---|---|
-| 0 | 2026-09-03 | schema applied; worker v0.1.0 deployed; one canonical self-test to alerts@qnfo.org (done, verified in D1) |
-| 1 | 2026-09-03 (cron) | miner populates contacts; campaigns draft sends (draft only) |
+| 0 | 2026-09-03 | schema applied (verified: 16 tables, kill switch=1, 3 campaigns, 4 RFC topics); worker v0.2.0 deployed (replaced v0.1.0 scaffold); canonical repo dir QNFO/qnfo-workers/qnfo-outreach created (worker.js + schema.sql + wrangler.toml + metadata.json + README + deployed-current.worker.js); OUTREACH_TOKEN set (worker secret + ~/.env mirror); cron corrected to 0 11 * * 1-5; live /run preview mined +1 contact (FritscheLab/slurm-playbook) |
+| 1 | 2026-09-03 (cron) | daily 11:00 UTC: miner populates contacts; campaigns draft sends (draft only until activation) |
 | 2 | 2026-09-08 | warm-up window: 1 self-check/day to own mailboxes |
 | 3 | 2026-09-15 | ACTIVATION_AT: external sends enabled (gated by kill switch + caps + no-repeat) |
 | 4 | 2026-09-22 | journalist pitch campaign starts_at; submissions program (OSF, Zenodo communities, SWH) first batch |
@@ -409,10 +421,10 @@ phase; the kill switch exists as an emergency brake, not as a required step.
 | Claim | Evidence | Confidence | Status |
 |---|---|---|---|
 | qnfo-outreach D1 schema applied (9 tables, seeds) | d1_database_query PRAGMA + SELECT counts, this cycle | high | verified |
-| qnfo-outreach worker v0.1.0 deployed with cron + bindings | wrangler deploy exit 0 + /health version probe, this cycle | high | verified |
-| Send path works end-to-end | one canonical self-test to alerts@qnfo.org visible in email_check D1, this cycle | high | verified |
+| qnfo-outreach worker v0.2.0 deployed with cron + bindings | API multipart deploy exit 200 + /health version=0.2.0, 4/4 bindings true, cron 0 11 * * 1-5 (2026-09-03) | high | verified |
+| Send path binding + templates verified; first external send date-gated | SEND_EMAIL binding true via /health; v0.2.0 sends fire >= 2026-09-15 (ACTIVATION_AT) under kill switch + caps | high | verified-by-binding; live send pending activation |
 | External sends are date-gated and capped | ACTIVATION_AT + kill switch + caps in worker.js (read-back), this cycle | high | verified |
-| No-repeat-contact bridged across cloud-ops and worker | AUDIT_D1 outreach_log check in send path | medium | verified by code read; first live collision test at Phase 3 |
+| No-repeat-contact bridged across cloud-ops and worker | v0.2.0 send path checks sends + legacy outreach_campaigns + qnfo-audit.outreach_log + contact_ledger opt-outs before every send | high | verified by code read; first live collision test at Phase 3 |
 | Per-venue API assumptions (PREreview/PRC/Qeios/Indico/pretalx) | documented flags; TOS checks before enable | medium | open |
-| Funnel feeds P7 scorecard | funnel_daily schema; jobVisibility extension pending | medium | planned (owner: qnfo-cloud-ops next revision) |
+| Funnel feeds P7 scorecard | qnfo-cloud-ops v1.11.0 deployed 2026-09-03: jobVisibility outreach section reads funnel_daily + submissions via OUTREACH binding (/health outreach:true, 3/3 polls) | high | verified-live |
 | Grants radar key + journalist miner v0.2 | spec'd with secrets table | medium | dated (Phase 5 / v0.2) |

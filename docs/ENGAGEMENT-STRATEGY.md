@@ -9,7 +9,9 @@
 > qnfo-audit.social_engagements; Buffer token 401 = reconnect required; qnfo-cloud-ops v1.10.0 deployed
 > with jobEngagement) · Confidence: high (substrate) / medium (growth projections) · Status: ACTIVE
 > Companion docs: EXPERIMENTATION-PROGRAM.md (experiment governance), VISIBILITY-VERSIONING-PROGRAM.md
-> (version engine), CLOUD-NATIVE-AUTONOMY-PLAN.md
+> (version engine), OUTREACH-AUTOMATION-STRATEGY.md (execution layer: automated email outreach - RFC /
+> async interviews / journalist-blogger pitches / grant EOIs - and open submissions; programs P-A..P-F,
+> qnfo-outreach worker v0.2.0), CLOUD-NATIVE-AUTONOMY-PLAN.md
 
 ---
 
@@ -182,7 +184,7 @@ claim in this document (FRAMEWORK-DOGFOOD-1).
 | P2 | A/B program | EXP-2026-002/003 registered; backlog | QNFO | done-verified |
 | P3 | Social amplification | calendar + reply policy + Buffer tool | QNFO | partial (Buffer token user-side) |
 | P4 | Citation engine | DataCite/OpenAlex sweep + cite-this blocks | QNFO | sweep done-verified; cite-this next cycle |
-| P5 | Email outreach | version-notification flow | QNFO | existing infra; evidence-gated |
+| P5 | Email outreach | version-notification flow + full outreach engine (RFC/interview/pitch/EOI via qnfo-outreach v0.2.0, OUTREACH-AUTOMATION-STRATEGY P-A..P-F) | QNFO | live (date-gated activation 2026-09-15) |
 | P6 | Website conversion | cite-this block, comment-surface gate | QNFO | planned |
 | P7 | Scorecard & review | weekly digest + experiment reads | qnfo-cloud-ops cron | live (v1.10.0) |
 | P8 | Governance | guardrail list + claim sheets | QNFO | live |
@@ -198,6 +200,7 @@ claim in this document (FRAMEWORK-DOGFOOD-1).
 | Weekly digest now carries citations + engagement | jobVisibility v1.10.0 source reads citation_stats + social_engagements | high | verified (code read-back) |
 | Citation sweep works end-to-end | 25 DOIs → 95 rows (openalex 20 sum 2, datacite 25 sum 32, zenodo 50 = 2,502 dl / 684 views) | high | verified |
 | Zone honest baseline | CF GraphQL 7d 66,328 req / 26,727 pv / 7,044 uniq; ~90% bot noise (reach-audit) | high | verified |
+| Outreach execution layer live | qnfo-outreach v0.2.0 deployed (activation 2026-09-15), cron 0 11 * * 1-5, +1 mined contact; scorecard outreach section via cloud-ops v1.11.0 (/health outreach:true) | high | verified |
 | Corpus citations are non-zero via DataCite | datacite citationCount sum 32 / 25 DOIs; internal-vs-external split not yet classified | high | verified-baseline |
 
 ## 13. Open items (explicit, owned)

@@ -49,7 +49,7 @@ honest, measurable, and never spammy or fabricated.
   (qnfo-cloud-ops v1.10.0, weekly Mon 07:15 AMS, Bluesky live + Buffer token-gated) + scripts/engagement_collect.py.
   See docs/ENGAGEMENT-STRATEGY.md (this program's execution umbrella).
 
-Registered: EXP-2026-001 Version-freshness bump effect (running, baseline 2026-09-01).
+Registered: EXP-2026-001 version-freshness (running); EXP-2026-002 social message framing (running); EXP-2026-003 social posting time (planned); EXP-2026-004 outreach subject-line A/B (registered, activates 2026-09-15 per OUTREACH-AUTOMATION-STRATEGY).
 
 ## 5. Iteration cadence
 
