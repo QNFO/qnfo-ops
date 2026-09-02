@@ -27,3 +27,13 @@ events/messaging; D1 may not suit all data; what D1 data should move?
 CF docs 2026-09-02 (Queues JS APIs; Analytics Engine SQL 2025-09/11; Pipelines;
 Logpush workers logs; R2 SQL). D1 inventory: qnfo-audit ~25MB, living-paper
 ~39MB, personal-life ~23MB, qnfo-graph ~8MB, portfolio-state/ipatent/outreach/cms.
+
+## Amendment 2026-09-02 (autonomous execution finding)
+Analytics Engine is NOT available on this account today: wrangler 4.118 exposes
+no analytics-engine commands; CF API datasets list returns HTTP 500; an
+analytics_engine binding deployed silently without attaching (bindings []);
+worker qnfo-telemetry was created then removed. Fallback (native, available):
+Workers Logs + Logpush -> R2 for the raw log/event trail; D1 (qnfo-audit
+cloud_ops_events + qnfo-events issue_ledger) remains the operational ledger;
+Vectorize qnfo-cloud-ops remains the semantic event index. Re-check AE
+entitlement before reintroducing AE work (tracked agent_issue).
