@@ -10,7 +10,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.7.1";
+const VERSION = "1.8.0";
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -159,6 +159,7 @@ const AMS_SCHEDULE = {
   "nlnet":          { times: ["11:00"], days: null,  fixed: { dom: 3, mon: 9 } },
   "worker-health":  { times: ["05:05", "17:05"], days: "*",   fixed: null },
   "sitemap-ping":   { times: ["06:00"], days: null,  fixed: { dom: 1, mon: "*" } },
+  "loose-threads-sweep": { times: ["07:00"], days: "1", fixed: null },
 };
 
 // Build cron strings (UTC) for a given Amsterdam UTC offset in hours (+2 CEST, +1 CET).
@@ -743,6 +744,68 @@ async function jobSitemapPing(env) {
   }
   if (out.fail > 0) await sendDigest(env, "Sitemap ping failures — " + new Date().toISOString().slice(0, 10), out.urls.join(NL));
   return { status: "ok", notes: out };
+}
+
+// ---------- loose threads sweep (weekly Monday 07:00 Amsterdam) ----------
+// Cloud-native standing sweep for unfinished WBS states / handoffs / tasks (user directive
+// 2026-09-02: periodic sweep to find loose threads). Digests decision items; silent when clean.
+// Resolution happens in the ops cycle that receives the digest (disposition markers in
+// phase_data.disposition_<date>, newer handoff rows, or task status updates).
+async function jobLooseThreadsSweep(env) {
+  const GRACE_DAYS = 7;
+  const out = { wbs_mid: 0, handoffs_open: 0, tasks_open: 0, items: [] };
+  try {
+    const wbs = await env.AUDIT.prepare(
+      "SELECT project_id, current_phase, total_phases, last_updated FROM wbs_state " +
+      "WHERE current_phase GLOB '[0-9]*' AND total_phases GLOB '[0-9]*' " +
+      "AND CAST(current_phase AS INTEGER) < CAST(total_phases AS INTEGER) " +
+      "AND (phase_data NOT LIKE '%disposition_%' OR phase_data = '{}') " +
+      "AND last_updated < datetime('now', '-7 days') " +
+      "ORDER BY last_updated ASC LIMIT 40"
+    ).all();
+    for (const r of wbs.results || []) {
+      out.wbs_mid++;
+      out.items.push("WBS " + r.project_id + " phase " + r.current_phase + "/" + r.total_phases + " (updated " + String(r.last_updated).slice(0, 19) + ")");
+    }
+  } catch (e) { out.items.push("wbs query error: " + String(e && e.message || e)); }
+  try {
+    const h = await env.AUDIT.prepare(
+      "SELECT h.project_id, h.pending_work, h.timestamp FROM handoffs h " +
+      "WHERE h.timestamp = (SELECT MAX(h2.timestamp) FROM handoffs h2 WHERE h2.project_id = h.project_id) " +
+      "AND h.pending_work IS NOT NULL AND TRIM(h.pending_work) != '' " +
+      "AND h.timestamp < datetime('now', '-7 days') " +
+      "ORDER BY h.timestamp ASC LIMIT 40"
+    ).all();
+    for (const r of h.results || []) {
+      out.handoffs_open++;
+      out.items.push("HANDOFF " + r.project_id + " (" + String(r.timestamp).slice(0, 19) + "): " + String(r.pending_work).slice(0, 90));
+    }
+  } catch (e) { out.items.push("handoffs query error: " + String(e && e.message || e)); }
+  try {
+    const t = await env.AUDIT.prepare(
+      "SELECT task_code, status, updated_at FROM tasks_wbs " +
+      "WHERE status IN ('pending','in_progress','blocked') " +
+      "AND updated_at < datetime('now', '-7 days') " +
+      "ORDER BY updated_at ASC LIMIT 40"
+    ).all();
+    for (const r of t.results || []) {
+      out.tasks_open++;
+      out.items.push("TASK " + r.task_code + " [" + r.status + "] (updated " + String(r.updated_at).slice(0, 19) + ")");
+    }
+  } catch (e) { out.items.push("tasks query error: " + String(e && e.message || e)); }
+  const total = out.wbs_mid + out.handoffs_open + out.tasks_open;
+  await recordEvent(env, "job-run", "jr-loose-threads-" + Date.now().toString(36), "loose-threads-sweep: " + total + " items (wbs " + out.wbs_mid + ", handoffs " + out.handoffs_open + ", tasks " + out.tasks_open + ")", { job: "loose-threads-sweep", status: total ? "attention" : "ok" });
+  if (!total) return { status: "ok", notes: { total: 0, silent: true } };
+  const L = [
+    "Loose threads sweep \u2014 " + new Date().toISOString().slice(0, 10),
+    "",
+    "WBS mid-phase: " + out.wbs_mid + " | open handoffs: " + out.handoffs_open + " | open tasks: " + out.tasks_open,
+    "",
+  ].concat(out.items.slice(0, 25));
+  if (out.items.length > 25) L.push("... truncated (" + out.items.length + " total items; resolve oldest first).");
+  L.push("", "Resolution: disposition each item (complete / convert-to-schedule / delete-with-rationale) in the next ops cycle.");
+  const d = await sendDigest(env, "Loose threads \u2014 " + total + " item(s) need disposition", L.join(NL));
+  return { status: "ok", notes: { total, wbs_mid: out.wbs_mid, handoffs_open: out.handoffs_open, tasks_open: out.tasks_open, digest: d } };
 }
 
 // ---------- weekly (Friday 17:00 Amsterdam) ----------
@@ -1395,6 +1458,7 @@ const JOBS = {
   "backfill": jobBackfill,
   "worker-health": jobWorkerHealth,
   "sitemap-ping": jobSitemapPing,
+  "loose-threads-sweep": jobLooseThreadsSweep,
 };
 
 // cron -> job dispatch map for a given Amsterdam offset
