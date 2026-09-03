@@ -67,6 +67,15 @@ preferredModel/defaultModel across agent.db app_settings + app-settings.json to 
 read-back verified; recurrence-zero remedy for MODEL-KEY-FILE-DRIFT-1, fixed a live v4-pro drift
 2026-09-02, commit 5374149).
 
+Additional QNFO_ device tasks (inventoried 2026-09-03 red-team pass - previously undocumented):
+QNFO_Chat_Log_Push (daily 05:25, log_chat_task.vbs), QNFO_DeepChat_Backup_Daily (daily 09:30,
+DeepChatData\repo\scripts\backup_deepchat.py), QNFO_DeepChat_Reload (minute watchdog,
+deepchat_relaunch_watchdog.vbs), QNFO_FS_Maintenance_Daily (daily 09:40, fs_audit_cleanup.py --clean),
+QNFO_Skill_Pull_Daily (daily 06:30, skill_pull_task.vbs), QNFO_Tape_Prune_Daily (daily 05:35,
+prune_tape_task.vbs). QNFO_DB_Maintenance_Daily (disabled since 2026-08-25) deleted 2026-09-03.
+Standing inventory = INFRA-AUDIT-G17; backup-task overlap review (DeepChat_Backup_Daily 09:30 vs
+QNFO-DeepChat-Backup 23:59) pending.
+
 ## Residual manual / user-side (owned, triggered, never silent) - resolved 2026-09-02
 
 | Item | Resolution | Evidence |

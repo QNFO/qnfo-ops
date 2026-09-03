@@ -102,7 +102,7 @@
 
 ## 6. Backlog items inserted into agent_issues (extending, never duplicating)
 
-See agent_issues ids added this session: 381+ (query by source='infra-audit-2026-09-03').
+See agent_issues ids added this session: 390-405, n=16 (query by source='infra-audit-2026-09-03'). [Corrected by red-team pass: MIN(id)=390, MAX(id)=405.]
 
 ## 7. Claim sheet (FRAMEWORK-DOGFOOD-1)
 
@@ -113,3 +113,21 @@ See agent_issues ids added this session: 381+ (query by source='infra-audit-2026
 | 3 repo-vs-live DRIFT rows remain after v2.0 | E7 + post-run grep | high | verified |
 | Backlog capacity risk is real | agent_issues 297 open vs 40/day drain | high | verified |
 | Fleet is actively churning (concurrent sessions) | live count 57→58 mid-audit; qnfo-ai 5.16.9→5.20.1 in <1h | high | verified |
+
+## 8. Red-team pass 2026-09-03 (adversarial re-audit of this document)
+
+Verdict: PASS-WITH-NOTES. Notes remediated this turn; new backlog items G15-G18 inserted (source 'infra-audit-2026-09-03-rt').
+
+| # | Finding | Sev | Evidence | Disposition |
+|---|---|---|---|---|
+| F1 | Device schtasks inventory incomplete: 7 QNFO_ underscore tasks (6 active, 1 disabled) undocumented; closeout claim "only the 3 canonical QNFO tasks remain" false (enumeration grepped "QNFO-" only) | HARD | schtasks /query: QNFO_Chat_Log_Push, QNFO_DB_Maintenance_Daily(disabled), QNFO_DeepChat_Backup_Daily, QNFO_DeepChat_Reload, QNFO_FS_Maintenance_Daily, QNFO_Skill_Pull_Daily, QNFO_Tape_Prune_Daily | Inventory added to CLOUD-NATIVE-AUTONOMY-PLAN device section; disabled residue QNFO_DB_Maintenance_Daily deleted (verified); standing check = G17 |
+| F2 | Durable Objects invisible to governance: 2 namespaces (qnfo-agent-orchestrator_AgentTask, qnfo-agent-ws_QnfoAgent) absent from manifest/plan/OPS-SELF-DOC/infra_status MCP | HARD | CF API GET /workers/durable_objects/namespaces | G15 |
+| F3 | §6 id pointer "381+" wrong; actual range 390-405 | SOFT | SELECT MIN(id),MAX(id) WHERE source='infra-audit-2026-09-03' -> 390,405 n=16 | Fixed in this doc |
+| F4 | "resolution predicates" overclaim: backlog-exec auto-closes ONLY health-availability rows (workerTarget+isHealthAvailability+probeHealth); 15/16 new rows are recheck-only. Exception: G2r carries a working escalation predicate (daily warning alert until qnfo-email /health un-gated) | SOFT | qnfo-backlog-exec worker.js run() source | G16 (predicate-type extension) |
+| F5 | G10 body_md backfill conflicts directionally with existing #369 (body_md blobs -> R2, slim D1) | SOFT | agent_issues id 369 title/description | G10 scoped to r2_path only; #369 remains body_md authority |
+| F6 | FLEET-MANIFEST (framework record) locked counts lack claim-sheet fields (FRAMEWORK-DOGFOOD-1) | DESIGN | manifest has no claim/evidence/confidence/status block | G18 (sweep v2.1 claims footer) |
+| F7 | S3a overlaps existing #383 (self-audit-2026-09-03, "fleet drift instant: manifest stale after every deploy") - largely resolved by the v2.0 generator shipped this session | SOFT | agent_issues id 383 | 383 description annotated with v2.0 evidence pointer; S3a remains as the residual same-day-staleness hook |
+
+Positive controls re-verified this pass: HEAD ccdb324 clean + working tree == committed (committed sweep contains lstrip v-prefix fix line 138 + self-locating _here lines 17-18); manifest 58/28/3/27 internally consistent; all 3 DRIFT rows re-probed live (infra 1.5.1 / lifecycle 1.6.1-memory-maintain-fixed / memory-mcp 2.0.2); living-paper 1026/608 + issue_ledger 23 unchanged; deployment_history resolves (16 rows); queues verified absent (CF API []); zones 12 == analytics sites; cloud-ops 16 schedules enumerated incl. 30 5 * * 1 visibility + 15 5 * * 1 engagement; open-backlog math consistent (297-5 closed+16 = 308).
+
+Red-team method corrections (recorded for future passes): grep "\\|" BRE alternation silently matched nothing in this shell - re-probe with -F/-E before concluding absence; SQL "source != X" excludes NULL-source rows - always add "source IS NULL OR" branch.
