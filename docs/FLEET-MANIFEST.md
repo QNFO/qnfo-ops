@@ -6,6 +6,7 @@
 > Cycle-2 refresh 2026-09-02 ~20:45 UTC (QNFO.OPS.AUDITLOOP.001): + qnfo-auditor 1.0.0 (fleet event audit & act loop).
 > Cycle-3 refresh 2026-09-02 ~21:50 UTC (ERRATA-WORKFLOW-MIGRATION): + qnfo-errata-orchestrator 1.0.0 (ErrataWorkflow durable orchestration);
 > Cycle-4 refresh 2026-09-03 ~06:25 UTC (OPS-AI-ENDPOINT): qnfo-ops v0.4 stub -> v1.0.1 ops AI execution endpoint (repo qnfo-workers/qnfo-ops); qnfo-ai 5.16.6 auto-express guard keeps ops commands out of the ideas/research stream.
+> Cycle-5 refresh 2026-09-03 ~08:00 UTC (OPS-ENDPOINT-FULL-INTEGRATION): qnfo-ops 1.0.3 (d1 read-only guard hardened - mutation keywords blocked anywhere; daily cap 250/UTC day; /v1/models capability advertisement chat/agent/code/streaming/tool_use); qnfo-ai 5.16.7 (guard covers worker-name health/status phrasing; /v1/models capabilities advertised); ops endpoint registered in DeepChat (provider QNFO-OPS + agent ops) and ChatBox Windows (provider qnfo-ops); ChatBox qnfo-router roster synced to live 22 models.
 > legacy errata watch/respond/publish now step-executors behind errata-workflow (crons disabled 2026-09-02).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
@@ -30,7 +31,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | personal-life-search | v1.2.3-env-secret | 2026-08-28 09:48:43 | - | - | GAP (no repo dir) |
 | qnfo-agent-orchestrator | v1.0.0 | 2026-09-01 09:55:40 | - | - | GAP (no repo dir) |
 | qnfo-agent-ws | 1.3.9 | 2026-08-14 14:50:27 | - | - | GAP (no repo dir) |
-| qnfo-ai | 5.16.6 | 2026-09-03 06:45 UTC | qnfo-workers/qnfo-ai | 5.16.6 | OK |
+| qnfo-ai | 5.16.7 | 2026-09-03 08:00 UTC | qnfo-workers/qnfo-ai | 5.16.7 | OK |
 | qnfo-ai-patch-test | NO-HEALTH | 2026-09-01 08:44:26 | - | - | GAP (no repo dir) |
 | qnfo-ai-search | 1.0.2 | 2026-08-12 06:30:11 | qnfo-workers/qnfo-ai-search | 1.0.2 | OK |
 | qnfo-archive | 1.2-cors-fixed | 2026-07-30 12:05:58 | - | - | GAP (no repo dir) |
@@ -60,7 +61,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-kaizen | 0.2.0 | 2026-09-01 09:47:33 | - | - | GAP (no repo dir) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-01 07:12:40 | - | - | GAP (no repo dir) |
 | qnfo-memory-mcp | 2.0.2 | 2026-08-17 18:16:50 | - | - | GAP (no repo dir) |
-| qnfo-ops | 1.0.2 | 2026-09-03 06:50 UTC | qnfo-workers/qnfo-ops | 1.0.2 | OK |
+| qnfo-ops | 1.0.3 | 2026-09-03 08:00 UTC | qnfo-workers/qnfo-ops | 1.0.3 | OK |
 | qnfo-outreach | 0.1.0 | 2026-09-03 | qnfo-workers/qnfo-outreach | 0.1.0 | OK (campaign pipeline; ACTIVATION_AT 2026-09-15) |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | - | - | GAP (no repo dir) |
 | qnfo-pdf | NO-HEALTH | 2026-09-02 18:34 | - | - | GAP (no repo dir) |
