@@ -83,3 +83,12 @@ that is inappropriate for a research/IP surface. Both need continued R&D.
   suggest personal/ops actions; enforced server-side in both workers.
 - TEST-PROTOCOLS-INTEGRATED-1: this wave closed with live probes (/health versions, endpoint
   JSON shapes, banned-token scan, raw HTML markers) in the same cycle.
+
+## Wave 2 (2026-09-03) — audit SOFT-note closure
+- **qnfo-ipatent v3.4.1** (commit pending, deploy 996deb87): cleanField() taxonomy on the
+  public suggestion surface — internal folder labels are mapped to USPTO-style fields on
+  /api/suggest + /api/idea (SOFT-N3 closed). Verified live: /api/idea?i=0 technical_field =
+  "Quantum Computing & Information" (was "99_Brutal_Cleanup"); banned-token scan clean.
+- **qnfo-idea-factory v2.7.1** (commit pending, deploy c09a8c97): suggestion deny-tune —
+  meta/filler first-messages ("what's the tl;dr", "this would be good for a research paper")
+  excluded from ASK chips (SOFT-N1 subset). Verified live: absent from /api/suggest payload.
