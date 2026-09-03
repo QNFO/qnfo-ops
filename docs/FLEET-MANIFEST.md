@@ -7,6 +7,7 @@
 > Cycle-3 refresh 2026-09-02 ~21:50 UTC (ERRATA-WORKFLOW-MIGRATION): + qnfo-errata-orchestrator 1.0.0 (ErrataWorkflow durable orchestration);
 > Cycle-4 refresh 2026-09-03 ~06:25 UTC (OPS-AI-ENDPOINT): qnfo-ops v0.4 stub -> v1.0.1 ops AI execution endpoint (repo qnfo-workers/qnfo-ops); qnfo-ai 5.16.6 auto-express guard keeps ops commands out of the ideas/research stream.
 > Cycle-5 refresh 2026-09-03 ~08:00 UTC (OPS-ENDPOINT-FULL-INTEGRATION): qnfo-ops 1.0.3 (d1 read-only guard hardened - mutation keywords blocked anywhere; daily cap 250/UTC day; /v1/models capability advertisement chat/agent/code/streaming/tool_use); qnfo-ai 5.16.7 (guard covers worker-name health/status phrasing; /v1/models capabilities advertised); ops endpoint registered in DeepChat (provider QNFO-OPS + agent ops) and ChatBox Windows (provider qnfo-ops); ChatBox qnfo-router roster synced to live 22 models.
+> Cycle-6 refresh 2026-09-03 ~09:00 UTC (WHAT-ELSE EXEC): qnfo-ops 1.0.4 (/cost route; guarded email_mark/email_respond reply-to-inbound w/ negation-aware user affirmation + spam-token subject rejection); qnfo-chat-canary 1.0.2 (ops-feed guard probe - ops phrase w/ chat UA must not auto-express; once/day + cleanup + HIGH alert); qnfo-cloud-ops 1.12.0 (visibility digest adds ops AI 7d section: chats/cost/tool events/drains).
 > legacy errata watch/respond/publish now step-executors behind errata-workflow (crons disabled 2026-09-02).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
@@ -37,11 +38,10 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-archive | 1.2-cors-fixed | 2026-07-30 12:05:58 | - | - | GAP (no repo dir) |
 | qnfo-arxiv-radar | NO-HEALTH | 2026-09-01 18:02:45 | - | - | GAP (no repo dir) |
 | qnfo-blank-audit | 1.1.0 | 2026-09-02 19:03:00 | qnfo-workers/qnfo-blank-audit | 1.1.0 | OK |
-| qnfo-chat-canary | 1.0.1 | 2026-09-02 19:13:00 | qnfo-workers/qnfo-chat-canary | 1.0.1 | OK |
+| qnfo-chat-canary | 1.0.2 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-chat-canary | 1.0.2 | OK |
 | qnfo-calibration-audit | NO-HEALTH | 2026-09-01 18:17:33 | - | - | GAP (no repo dir) |
-| qnfo-chat-canary | NO-HEALTH | 2026-09-02 19:07 | - | - | GAP (no repo dir) |
 | qnfo-citation-watch | NO-HEALTH | 2026-09-01 17:39:26 | - | - | GAP (no repo dir) |
-| qnfo-cloud-ops | 1.11.0 | 2026-09-03 | qnfo-workers/qnfo-cloud-ops | 1.11.0 | OK (jobEngagement + visibility outreach/citations/engagement sections; OUTREACH binding) |
+| qnfo-cloud-ops | 1.12.0 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-cloud-ops | 1.12.0 | OK |
 | qnfo-events | 1.0.2 | 2026-09-02 19:57 UTC | qnfo-workers/qnfo-events | 1.0.2 | OK |
 | qnfo-auditor | 1.1.2 | 2026-09-02 21:08 UTC | qnfo-workers/qnfo-auditor | 1.1.2 | OK |
 | qnfo-email | NO-HEALTH | 2026-08-31 21:22:10 | - | - | GAP (no repo dir) |
@@ -61,7 +61,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-kaizen | 0.2.0 | 2026-09-01 09:47:33 | - | - | GAP (no repo dir) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-01 07:12:40 | - | - | GAP (no repo dir) |
 | qnfo-memory-mcp | 2.0.2 | 2026-08-17 18:16:50 | - | - | GAP (no repo dir) |
-| qnfo-ops | 1.0.3 | 2026-09-03 08:00 UTC | qnfo-workers/qnfo-ops | 1.0.3 | OK |
+| qnfo-ops | 1.0.4 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-ops | 1.0.4 | OK |
 | qnfo-outreach | 0.1.0 | 2026-09-03 | qnfo-workers/qnfo-outreach | 0.1.0 | OK (campaign pipeline; ACTIVATION_AT 2026-09-15) |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | - | - | GAP (no repo dir) |
 | qnfo-pdf | NO-HEALTH | 2026-09-02 18:34 | - | - | GAP (no repo dir) |
