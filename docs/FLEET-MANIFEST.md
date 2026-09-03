@@ -40,7 +40,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-blank-audit | 1.1.0 | 2026-09-02 19:03:00 | qnfo-workers/qnfo-blank-audit | 1.1.0 | OK |
 | qnfo-chat-canary | 1.0.2 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-chat-canary | 1.0.2 | OK |
 | qnfo-calibration-audit | NO-HEALTH | 2026-09-01 18:17:33 | - | - | GAP (no repo dir) |
-| qnfo-citation-watch | NO-HEALTH | 2026-09-01 17:39:26 | - | - | GAP (no repo dir) |
+| qnfo-citation-watch | 1.0.0 | 2026-09-03 05:55 UTC | - | 1.0.0 | OK (workers.dev route re-enabled 2026-09-03; repo-dir GAP remains) |
 | qnfo-cloud-ops | 1.12.0 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-cloud-ops | 1.12.0 | OK |
 | qnfo-events | 1.0.2 | 2026-09-02 19:57 UTC | qnfo-workers/qnfo-events | 1.0.2 | OK |
 | qnfo-auditor | 1.1.2 | 2026-09-02 21:08 UTC | qnfo-workers/qnfo-auditor | 1.1.2 | OK |

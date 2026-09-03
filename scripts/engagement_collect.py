@@ -92,6 +92,18 @@ def main():
                             tot[metric] += int(value or 0)
                         n += 1
                 summary["bluesky"] = {"posts": n, **tot}
+                # Account-level growth metrics (G4 2026-09-03): per-post window misses
+                # engagement on older posts; profile counts show true audience trend.
+                try:
+                    st, prof = http(BSKY + "/app.bsky.actor.getProfile?actor=" + urllib.parse.quote(sess["did"]), token=jwt)
+                    pv = prof if isinstance(prof, dict) else {}
+                    acct_vals = {"followers": pv.get("followersCount", 0), "follows": pv.get("followsCount", 0), "posts": pv.get("postsCount", 0)}
+                    for metric, value in acct_vals.items():
+                        d1_write(cf, "INSERT INTO social_engagements (platform, post_id, metric, value, collected_at) VALUES (?,?,?,?,?) ON CONFLICT(platform, post_id, metric, collected_at) DO UPDATE SET value=excluded.value",
+                                 ["bluesky_account", "profile", metric, int(value or 0), today])
+                    summary["bluesky_account"] = acct_vals
+                except Exception as ae:
+                    summary["bluesky_account"] = {"error": str(ae)[:150]}
         except Exception as e:
             summary["bluesky"] = {"error": str(e)[:200]}
     else:
