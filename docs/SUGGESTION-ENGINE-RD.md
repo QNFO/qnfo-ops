@@ -92,3 +92,9 @@ that is inappropriate for a research/IP surface. Both need continued R&D.
 - **qnfo-idea-factory v2.7.1** (commit pending, deploy c09a8c97): suggestion deny-tune —
   meta/filler first-messages ("what's the tl;dr", "this would be good for a research paper")
   excluded from ASK chips (SOFT-N1 subset). Verified live: absent from /api/suggest payload.
+
+
+## Wave 2.2 (2026-09-03) - autonomous deferred resolution
+- qnfo-idea-factory v2.7.2 (deploy 41475adb): junk-marker tuning from live /api/sessions sample - naming prompts, reply-with-exactly, guard-probe, qnfo-calendar ops noise excluded from feed+chips.
+- qnfo-ipatent v3.4.2 (deploy 981b4801): PRIOR-ART CLOSENESS WARNING - /api/draft returns prior_art when top corpus similarity >=0.80; amber banner in result UI (style/prior-art reference, not clearance).
+- backup now runs via detached one-shot runner (schtasks queue unreliable); poll backup_task.log to completion.
