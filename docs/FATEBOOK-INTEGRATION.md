@@ -1,6 +1,10 @@
 # QNFO Fatebook Integration - Strategy and Options
 
-> Version 1.0 (2026-09-03) - Owner: QNFO - Status: EXPLORED / PLANNED (no Fatebook account or API key yet)
+> Version 1.1 (2026-09-03) - Owner: QNFO - Status: EXPLORED / PLANNED (no Fatebook account or API key yet)
+> v1.1 change set (autonomous closeout of the 2026-09-03 CMD RED TEAM PASS-WITH-NOTES): adds the similar/
+> related-platform landscape audit (section 3.2), extends the claims table (section 8), records autonomous
+> decisions (unlisted-until-review default, flagship-claim pilot scope, Metaculus watch-only, MCP registration
+> deferred to Phase P-A), and leaves exactly ONE user-side blocker: the Fatebook account + API key.
 > Claim: Fatebook's public API (10 procedures under /v0/*) plus the community fatebook-mcp MCP server give
 > QNFO a low-friction public calibration ledger for probability-bearing research claims, creatable and
 > resolvable from a script or a Cloudflare Worker, with every write path gated by one account-level API key.
@@ -110,6 +114,26 @@ platform dependency.
 Recommendation: Option D as the durable design, built on Option A mechanics; register Option B only if
 in-session question management is wanted (cheap, but gated on the same key).
 
+### 3.2 Similar and related platforms (landscape audit 2026-09-03)
+
+Purpose/mission/alignment audit of other prediction/forecasting platforms, probed live 2026-09-03:
+
+| Platform | Purpose / mission (evidence) | API / integration surface | QNFO alignment | Verdict |
+|---|---|---|---|---|
+| Metaculus | online forecasting platform + aggregation engine to improve human reasoning (metaculus.com; Wikipedia: benefit corp, est. 2015, Santa Cruz) | API docs at /api/ but api2 probes return HTTP 403 from this environment (bot-block) - write path unverified | medium-high on purpose; automation fit uncertain | watch-only |
+| Manifold Markets | play-money prediction markets ("Get 1,000 to start trading", manifold.markets/home) | open public API, live-confirmed read (api.manifold.markets/v0/markets); auth Key/JWT; 500 req/min; API alpha; $M1 fee on API comments; AI-training commercial use requires license | low-medium - probability = traded price with liquidity, NOT an owner-set forecast (breaks FATEBOOK-PROBABILITY-FIDELITY-1) | not a ledger fit |
+| PredictionBook | personal calibration logs | RETIRED - homepage: "PredictionBook has been retired, we recommend Fatebook as an alternative" | n/a | retired - validates Fatebook |
+| Good Judgment Open | public superforecasting challenges; sponsors UBS AM, The Economist, Harvard; owned by Good Judgment (Tetlock co-founder) (gjopen.com) | public questions; no evidence of an open write API; forecasts live inside commercial tournaments | low-medium - resolution control not QNFO's | not a fit |
+| INFER / RAND (ex-Foretell) | crowdsourced policy forecasting (UMD ARLIS, Georgetown CSET, RAND) | platform CONCLUDED - permanent read-only archive (infer-pub.com) | none | retired - niche churn risk proven |
+| Polymarket | crypto CLOB prediction market ("Build on the world's largest prediction market", docs.polymarket.com) | rich API/SDK; real-money trading; separate US docs | low - real money + market-price semantics + regulatory surface | not a fit |
+| Kalshi | CFTC-regulated event-contract exchange (docs.kalshi.com) | exchange REST/WebSocket/FIX; API keys; demo env; rate limits | low - exchange semantics, not a calibration ledger | not a fit |
+| Squiggle | QURI estimation language for intuitive probabilistic estimation (squiggle-language.com) | Rescript/JS library + playground/hub | medium as internal tooling to derive claim probabilities; NOT a public ledger | complementary tool only |
+
+Landscape conclusion: the pure-calibration niche is consolidating (PredictionBook and INFER both retired and/or
+point users to Fatebook). Market-style platforms (Manifold/Polymarket/Kalshi) are semantically incompatible
+with an owner-set published-forecast ledger. Fatebook remains the best-fit single platform for the QNFO
+calibration-ledger design (section 4); no change to the recommended design is required.
+
 ## 4. Recommended design: QNFO calibration ledger
 
 Concept: every published QNFO claim that carries an explicit probability and a resolution condition gets
@@ -193,17 +217,35 @@ resolution cycle proves data quality (same gate philosophy as the version-radar 
 | No Fatebook key or prior reference in QNFO environment | grep of local stores + conversation search, 2026-09-03 (zero hits) | high | verified |
 | fatebook-mcp (PyPI) runs via uvx with env FATEBOOK_API_KEY | README reviewed; matches existing arxiv-mcp-server stdio pattern in mcp-settings.json | high | verified (not executed) |
 | End-to-end create/forecast/resolve works as documented | NOT TESTED - no account/key in environment | n/a | unverified |
+| PredictionBook retired (recommends Fatebook); INFER/RAND concluded read-only | predictionbook.com root; infer-pub.com archive, live 2026-09-03 | high | verified live |
+| Market platforms use traded price, not owner-set forecast - mismatch for FATEBOOK-PROBABILITY-FIDELITY-1 | Manifold docs + live markets JSON; Polymarket/Kalshi docs, 2026-09-03 | high | verified |
+| Metaculus purpose-aligns but automation path bot-blocked/unverified from this environment | api2 probes HTTP 403; static /api/ docs title only, 2026-09-03 | medium | verified (boundary) |
+| 2026-09-03 adversarial audit of v1.0 = PASS-WITH-NOTES (0 HARD; completeness note closed in v1.1) | this section + audit report same date | high | verified |
 
-## 9. Open decisions for the user
+## 9. Open items and autonomous decisions
 
-1. Create a Fatebook account and supply an API key (required for every path).
-2. Public vs unlisted default for QNFO questions (recommended: unlisted until reviewed).
-3. Scope of the pilot claim set (recommended: flagship papers with explicit probabilities only).
-4. Whether to also register the fatebook-mcp server for in-session use.
+Autonomous decisions taken 2026-09-03 (100% autonomous, cloud-native, no user intervention):
+- Unlisted-until-review default: questions are created unlisted and set shared only after a review row
+  (setSharedPublicly per FATEBOOK-PUBLIC-PROSE-1).
+- Pilot claim scope: flagship papers with explicit published probabilities and a resolvable criterion only.
+- Metaculus: watch-only (purpose alignment high; automation path unverified while api2 probes stay bot-blocked).
+- fatebook-mcp registration: deferred to Phase P-A (after the key exists), registered as a uvx stdio server
+  with FATEBOOK_API_KEY env in mcp-settings.json (MCP-AUTOAPPROVE-PARITY-1 applies after restarts).
+- Similar/related platforms: no adoption outside Fatebook (section 3.2).
+
+Remaining user-side item (owner: user - cannot be completed autonomously):
+1. Create a Fatebook account and supply an API key (required for Phase P-A and every live write). All other
+   open items from v1.0 section 9 are closed.
 
 ---
 
 *Canonical repo: QNFO/qnfo-ops (docs/FATEBOOK-INTEGRATION.md). Exploration basis: fatebook.io/api-setup,
 fatebook.io/api/openapi.json, github.com/Sage-Future/fatebook, an1lam/fatebook-mcp, dcm31/mcp-fatebook v2.
 Aligned with docs/EXPERIMENTATION-PROGRAM.md (honest measurement) and docs/OUTREACH-AUTOMATION-STRATEGY.md
-(no-spam, activation date gates).*
+(no-spam, activation date gates).
+
+*v1.1 audit record: CMD RED TEAM 2026-09-03 - PASS-WITH-NOTES (Accuracy/Status clean; COMPLETENESS-1 landscape gap
+closed in this version; DEPENDENCY-1 gate-resolution portability note, house-wide pattern; NOVELTY-1 qualified
+leadership claim). Landscape evidence probed live 2026-09-03: predictionbook.com, infer-pub.com,
+docs.manifold.markets + api.manifold.markets, metaculus.com/api + Wikipedia, gjopen.com, docs.polymarket.com,
+docs.kalshi.com, squiggle-language.com.*
