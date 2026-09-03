@@ -41,7 +41,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-chat-canary | 1.0.2 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-chat-canary | 1.0.2 | OK |
 | qnfo-calibration-audit | NO-HEALTH | 2026-09-01 18:17:33 | - | - | GAP (no repo dir) |
 | qnfo-citation-watch | 1.0.0 | 2026-09-03 06:20 UTC | qnfo-workers/qnfo-citation-watch | 1.0.0 | OK (workers.dev route re-enabled 2026-09-03; canonical dir created) |
-| qnfo-cloud-ops | 1.12.0 | 2026-09-03 08:55 UTC | qnfo-workers/qnfo-cloud-ops | 1.12.0 | OK |
+| qnfo-cloud-ops | 1.13.0 | 2026-09-03 06:30 UTC | qnfo-workers/qnfo-cloud-ops | 1.13.0 | OK (OUTREACH-ENGINE-LIVE-1 gate + email validation) |
 | qnfo-events | 1.0.2 | 2026-09-02 19:57 UTC | qnfo-workers/qnfo-events | 1.0.2 | OK |
 | qnfo-auditor | 1.1.2 | 2026-09-02 21:08 UTC | qnfo-workers/qnfo-auditor | 1.1.2 | OK |
 | qnfo-email | NO-HEALTH | 2026-08-31 21:22:10 | - | - | GAP (no repo dir) |
