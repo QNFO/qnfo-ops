@@ -60,7 +60,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-kaizen | 0.2.0 | 2026-09-01 09:47:33 | - | - | GAP (no repo dir) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-01 07:12:40 | - | - | GAP (no repo dir) |
 | qnfo-memory-mcp | 2.0.2 | 2026-08-17 18:16:50 | - | - | GAP (no repo dir) |
-| qnfo-ops | 1.0.1 | 2026-09-03 ~06:25 UTC | qnfo-workers/qnfo-ops | 1.0.1 | OK |
+| qnfo-ops | 1.0.2 | 2026-09-03 06:50 UTC | qnfo-workers/qnfo-ops | 1.0.2 | OK |
 | qnfo-outreach | 0.1.0 | 2026-09-03 | qnfo-workers/qnfo-outreach | 0.1.0 | OK (campaign pipeline; ACTIVATION_AT 2026-09-15) |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | - | - | GAP (no repo dir) |
 | qnfo-pdf | NO-HEALTH | 2026-09-02 18:34 | - | - | GAP (no repo dir) |
