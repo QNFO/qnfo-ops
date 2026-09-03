@@ -5,6 +5,7 @@
 > qnfo-blank-audit 1.1.0, + qnfo-chat-canary 1.0.1 (behavioral chat canary + sent-guard).
 > Cycle-2 refresh 2026-09-02 ~20:45 UTC (QNFO.OPS.AUDITLOOP.001): + qnfo-auditor 1.0.0 (fleet event audit & act loop).
 > Cycle-3 refresh 2026-09-02 ~21:50 UTC (ERRATA-WORKFLOW-MIGRATION): + qnfo-errata-orchestrator 1.0.0 (ErrataWorkflow durable orchestration);
+> Cycle-4 refresh 2026-09-03 ~06:25 UTC (OPS-AI-ENDPOINT): qnfo-ops v0.4 stub -> v1.0.1 ops AI execution endpoint (repo qnfo-workers/qnfo-ops); qnfo-ai 5.16.6 auto-express guard keeps ops commands out of the ideas/research stream.
 > legacy errata watch/respond/publish now step-executors behind errata-workflow (crons disabled 2026-09-02).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.
 
@@ -59,7 +60,7 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 | qnfo-kaizen | 0.2.0 | 2026-09-01 09:47:33 | - | - | GAP (no repo dir) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-01 07:12:40 | - | - | GAP (no repo dir) |
 | qnfo-memory-mcp | 2.0.2 | 2026-08-17 18:16:50 | - | - | GAP (no repo dir) |
-| qnfo-ops | 0.4-service-bindings | 2026-08-12 13:49:35 | - | - | GAP (no repo dir) |
+| qnfo-ops | 1.0.1 | 2026-09-03 ~06:25 UTC | qnfo-workers/qnfo-ops | 1.0.1 | OK |
 | qnfo-outreach | 0.1.0 | 2026-09-03 | qnfo-workers/qnfo-outreach | 0.1.0 | OK (campaign pipeline; ACTIVATION_AT 2026-09-15) |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | - | - | GAP (no repo dir) |
 | qnfo-pdf | NO-HEALTH | 2026-09-02 18:34 | - | - | GAP (no repo dir) |
