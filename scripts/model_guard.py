@@ -4,6 +4,7 @@ Canonical: QNFO/qnfo-ops/scripts/model_guard.py (mirror .deepchat/scripts).
 Recurrence-ZERO-1 guard for MODEL-KEY-FILE-DRIFT-1 (app save re-drifts preferredModel to
 deepseek-v4-pro while the DB stays flash). Aligns BOTH stores (MODEL-KEY-DB-ROOT-SOURCE-1:
 DB rows first, then JSON, then read-back both). Idempotent; silent when clean.
+Trigger (2026-09-03): Windows Task Scheduler 'QNFO-ModelKey-Guard' runs this script every 30 min (schtasks MINUTE /mo 30; tightened from daily 07:00 after JSON preferredModel re-drifted to deepseek-v4-pro <3h after the daily fix - MODEL-KEY-GUARD-HOURLY-1). Device-bound local-config write: CLOUD-FRONTEND-ONLY-1 compliant; the DeepChat local cron 5-row registry is unchanged.
 Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix.
 """
 import json, os, sqlite3, sys, tempfile, datetime
