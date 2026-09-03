@@ -11,12 +11,10 @@
 | qnfo-skills | github.com/QNFO/qnfo-skills | 40 skills + system-prompt-v2.7.md + prompt-stores/customPrompts.json (12 CMD templates) |
 | wbs-6-synthesis | github.com/QNFO/wbs-6-synthesis | docs/WBS.TAXONOMY.md (WBS codes) + docs/WBS-AGENT-PROTOCOL.md |
 
-## 2. Cloudflare Workers (48 total — see docs/FLEET-MANIFEST.md)
+## 2. Cloudflare Workers (canonical count + versions = auto-generated FLEET-MANIFEST.md)
 Self-doc policy FLEET-SELF-DOC-1: every worker carries VERSION + /health + canonical repo bundle.
-Verified healthy core: qnfo-ai 5.11.0 (model router), qnfo-infra 1.5.0 (records oracle),
-personal-api v1.6.1, qnfo-idea-factory 2.4.0, qnfo-cloud-ops 1.6.0, qnfo-gateway, qnfo-memory-mcp,
-qnfo-tools-mcp, qnfo-email-orchestrator, qnfo-intent-orchestrator, qnfo-agent-orchestrator, qnfo-qwav.
-43 workers still flagged drift/partial/gap — weekly cron audits; per-worker /health additions pending.
+As of 2026-09-03 sweep v2.0: 58 workers, OK 28, DRIFT 3, GAP/PARTIAL 27 (self-contained enumeration,
+no hand-editing). Full per-worker table: docs/FLEET-MANIFEST.md (regenerated weekly + on demand).
 
 ## 3. Data stores
 ### D1 databases (8)

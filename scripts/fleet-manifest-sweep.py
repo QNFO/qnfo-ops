@@ -1,71 +1,161 @@
 #!/usr/bin/env python3
-import json, os, re, datetime
-rows = json.load(open(r'C:/Users/LENOVO/AppData/Local/Temp/fleet_rows.json', encoding='utf-8'))
-QW = r'C:/Users/LENOVO/AppData/Local/Temp/qnfo-workers'
-QO = r'C:/Users/LENOVO/AppData/Local/Temp/qnfo-ops'
-def compat_risk(name, compat):
-    # streams_enable_constructors is default-ON from compat date 2024-09-23 (CF docs).
-    # Workers that construct new ReadableStream (SSE/streaming) FAIL with a 502
-    # "ensemble failed: ... enable the streams_enable_constructors compatibility flag"
-    # class when deployed under an older/missing compat date. Gate: flag < 2024-09-23.
-    if not compat or compat == 'MISSING':
-        return True
+"""fleet-manifest-sweep.py v2.0 - self-contained fleet self-documentation generator.
+
+v2.0 (2026-09-03, INFRA-AUDIT S0-P0): the enumeration + /health-probe stage used to live
+outside this script (cron wrote a Temp fleet_rows.json ad hoc), which produced
+NO-HEALTH false negatives and let hand-edited cycle notes drift the counts.
+Now self-contained: CF API worker list + live /health probes (browser UA, correct
+subdomain <name>.q08.workers.dev) + repo-dir alias map + counts derived from rows.
+Usage: python fleet-manifest-sweep.py [qnfo-ops-repo-root]   (CLOUDFLARE_API_TOKEN in env)
+"""
+import json, os, re, sys, datetime, urllib.request, urllib.error
+
+ACCOUNT = 'edb167b78c9fb901ea5bca3ce58ccc4b'
+SUBDOMAIN = 'q08'
+TOKEN = os.environ.get('CLOUDFLARE_API_TOKEN', '')
+UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 QNFO-fleet-sweep/2.0'
+_here = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('QNFO_OPS_ROOT', '') or os.path.dirname(_here)
+QW = os.path.join(REPO_ROOT, '..', 'qnfo-workers') if REPO_ROOT else ''
+QO = REPO_ROOT or ''
+
+# Live worker name -> repo dir alias (dir names that differ from live script names)
+ALIAS = {
+    'qnfo-memory-mcp': 'memory-mcp',
+    'qnfo-agent-orchestrator': 'agent-orchestrator',
+    'qnfo-skills-discovery': 'skills-discovery',
+    'calendar-api': 'calendar',
+    'qnfo-errata-orchestrator': 'errata-orchestrator',
+    'qnfo-lifecycle': 'personal-lifecycle',
+}
+
+def cf_api(path):
+    req = urllib.request.Request('https://api.cloudflare.com/client/v4' + path,
+                                 headers={'Authorization': 'Bearer ' + TOKEN, 'User-Agent': UA})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.load(r)
+
+def probe_health(name):
+    url = 'https://%s.%s.workers.dev/health' % (name, SUBDOMAIN)
     try:
-        return compat < '2024-09-23'
+        req = urllib.request.Request(url, headers={'User-Agent': UA})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            body = r.read().decode('utf-8', 'replace')[:2000]
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return ('AUTH-GATED', None)
+        if e.code in (404, 405):
+            return _probe_root(name)
+        return ('NO-HEALTH', None)
     except Exception:
-        return True
+        return ('NO-HEALTH', None)
+    try:
+        d = json.loads(body)
+        ver = d.get('version') or d.get('VERSION')
+        return (ver if ver else 'NO-VERSION', d)
+    except Exception:
+        m = re.search(r'version["\':=]+([0-9][0-9a-zA-Z.\-]*)', body)
+        return (m.group(1) if m else 'NO-VERSION', None)
+
+def _probe_root(name):
+    url = 'https://%s.%s.workers.dev/' % (name, SUBDOMAIN)
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': UA})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            return ('ROOT-ONLY', None)
+    except Exception:
+        return ('NO-HEALTH', None)
 
 def repo_dir(name):
-    if os.path.isdir(os.path.join(QW, name)): return 'qnfo-workers/' + name
-    if os.path.isdir(os.path.join(QO, 'cloud', name)): return 'qnfo-ops/cloud/' + name
+    cand = ALIAS.get(name, name)
+    if QW and os.path.isdir(os.path.join(QW, cand)):
+        return 'qnfo-workers/' + cand
+    if QO and os.path.isdir(os.path.join(QO, 'cloud', cand)):
+        return 'qnfo-ops/cloud/' + cand
+    if QW and os.path.isdir(os.path.join(QW, name)):
+        return 'qnfo-workers/' + name
     return None
+
 def deployed_version(name):
     d = repo_dir(name)
-    if not d: return None
-    base = os.path.join(QW, name) if d.startswith('qnfo-workers') else os.path.join(QO, 'cloud', name)
-    cand = os.path.join(base, 'deployed-current.worker.js')
-    if not os.path.isfile(cand): cand = os.path.join(base, 'worker.js')
-    if not os.path.isfile(cand): return None
-    try:
-        txt = open(cand, encoding='utf-8', errors='replace').read()
-        m = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', txt)
-        if m: return m.group(1)
-        # Fallback (2026-09-02): API-deployed step-executor bundles carry no VERSION const;
-        # version is reported inline in /health worker+version adjacency.
-        m2 = re.search(r'worker:[^0-9]{0,40}?version:[^0-9]{0,12}?([0-9]+\.[0-9]+\.[0-9]+)', txt)
-        return m2.group(1) if m2 else 'UNVERSIONED'
-    except Exception:
+    if not d:
         return None
-now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
-L = ['# QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem', '',
-     '> Auto-generated ' + now + ' by the fleet self-documentation sweep.',
-     '> Living inventory; weekly Fleet Drift cron (42b1988c) re-generates and flags drift.',
-     '', '## Self-documentation policy (FLEET-SELF-DOC-1)', '',
-     'Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source; (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced; GAP = missing one or more.',
-     '', '## Fleet (' + str(len(rows)) + ' workers)', '',
-     '| Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |', '|---|---|---|---|---|---|']
-for w in rows:
-    name = str(w['name']); ver = w.get('version'); mod = str(w['modified'])
-    d = repo_dir(name); rv = deployed_version(name)
-    if ver is None: ver = 'NO-HEALTH'
-    else: ver = str(ver)
-    if ver in ('NO-HEALTH', 'ERR', 'None', 'True'): ver = 'NO-HEALTH'
-    if not d: sd = 'GAP (no repo dir)'
-    elif rv is None: sd = 'PARTIAL (no repo deployed-current)'
-    elif rv != ver and ver != 'NO-HEALTH': sd = 'DRIFT repo=' + str(rv)
-    elif ver == 'NO-HEALTH': sd = 'GAP (no /health)'
-    else: sd = 'OK'
-    L.append('| ' + name + ' | ' + ver + ' | ' + mod + ' | ' + (d or '-') + ' | ' + (rv or '-') + ' | ' + sd + ' |')
-L += ['', '## Summary', '']
-ok = sum(1 for l in L if '| OK |' in l)
-drift = sum(1 for l in L if '| DRIFT ' in l)
-gap = sum(1 for l in L if ('| GAP ' in l) or ('| PARTIAL ' in l))
-L += ['- Total workers: ' + str(len(rows)), '- Self-doc OK: ' + str(ok), '- Drift: ' + str(drift), '- GAP/PARTIAL: ' + str(gap),
-      '', '## Self-improvement loop', '',
-      '1. Fleet Drift & Self-Improvement Audit cron (weekly): re-runs sweep, logs drift, repairs via wrangler redeploy.',
-      '2. AI Worker Health + Provider Config Guard cron (every 3h): probes qnfo-ai + personal-api chat paths.',
-      '3. QNFO Data Freshness Sync cron (every 6h): calendar + email to Vectorize.',
-      '4. Kaizen cycles: every lesson becomes a named gate, dual-written. OPS-SELF-DOC.md is the master index.']
-out = os.path.join(QO, 'docs', 'FLEET-MANIFEST.md')
-open(out, 'w', encoding='utf-8').write('\n'.join(L))
-print('manifest regenerated OK=%d drift=%d gap=%d' % (ok, drift, gap))
+    base = os.path.join(QW, d.split('/', 1)[1]) if d.startswith('qnfo-workers') else os.path.join(QO, 'cloud', d.split('/', 1)[1])
+    for fname in ('deployed-current.worker.js', 'worker.js'):
+        cand = os.path.join(base, fname)
+        if not os.path.isfile(cand):
+            continue
+        try:
+            txt = open(cand, encoding='utf-8', errors='replace').read()
+        except Exception:
+            return None
+        m = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', txt)
+        if m:
+            return m.group(1)
+        m2 = re.search(r'version:[^0-9]{0,12}([0-9]+\.[0-9]+\.[0-9]+)', txt)
+        return m2.group(1) if m2 else 'UNVERSIONED'
+    return None
+
+def main():
+    if not TOKEN:
+        print('CLOUDFLARE_API_TOKEN missing'); sys.exit(2)
+    data = cf_api('/accounts/%s/workers/scripts?per_page=100' % ACCOUNT)
+    scripts = data.get('result', [])
+    if not scripts:
+        print('no workers returned: %s' % data.get('errors')); sys.exit(2)
+    rows = []
+    for w in scripts:
+        name = w['id'] if isinstance(w.get('id'), str) else w.get('name')
+        if not isinstance(w.get('id'), str) and w.get('name'):
+            name = w['name']
+        ver, body = probe_health(name)
+        rows.append({'name': name, 'version': ver, 'modified': (w.get('modified_on') or '')[:19].replace('T', ' ')})
+    now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    L = ['# QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem', '',
+         '> Auto-generated ' + now + ' by fleet-manifest-sweep.py v2.0 (self-contained enumeration + /health probes).',
+         '> Living inventory; weekly Fleet Drift cron (42b1988c) re-generates this file from live CF state - do NOT hand-edit;',
+         '> deploy history lives in qnfo-audit deployment_history + git log.',
+         '', '## Self-documentation policy (FLEET-SELF-DOC-1)', '',
+         'Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source;',
+         '(3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced;',
+         'GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send bearer).',
+         '', '## Fleet (' + str(len(rows)) + ' workers)', '',
+         '| Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |',
+         '|---|---|---|---|---|---|']
+    for w in sorted(rows, key=lambda x: x['name']):
+        name, ver, mod = w['name'], w['version'], w['modified']
+        d = repo_dir(name); rv = deployed_version(name)
+        if ver is None or ver in ('NO-HEALTH', 'ERR', 'None', 'True'):
+            ver = 'NO-HEALTH'
+        if not d:
+            sd = 'GAP (no repo dir)'
+        elif rv is None:
+            sd = 'PARTIAL (no repo deployed-current)'
+        elif ver in ('NO-VERSION', 'ROOT-ONLY'):
+            sd = 'PARTIAL (health w/o VERSION)'
+        elif ver == 'AUTH-GATED':
+            sd = 'GAP (auth-gated /health)'
+        elif rv.lstrip('vV') != ver.lstrip('vV') and ver not in ('NO-HEALTH', 'AUTH-GATED'):
+            sd = 'DRIFT repo=' + str(rv)
+        else:
+            sd = 'OK'
+        L.append('| ' + name + ' | ' + ver + ' | ' + mod + ' | ' + (d or '-') + ' | ' + (rv or '-') + ' | ' + sd + ' |')
+    ok = sum(1 for l in L if '| OK |' in l)
+    drift = sum(1 for l in L if '| DRIFT ' in l)
+    gap = sum(1 for l in L if ('| GAP ' in l) or ('| PARTIAL ' in l))
+    L += ['', '## Summary', '',
+          '- Total workers: ' + str(len(rows)),
+          '- Self-doc OK: ' + str(ok),
+          '- Drift: ' + str(drift),
+          '- GAP/PARTIAL: ' + str(gap),
+          '', '## Self-improvement loop', '',
+          '1. Fleet Drift & Self-Improvement Audit cron (weekly): re-runs this sweep, logs drift, repairs via wrangler redeploy.',
+          '2. AI Worker Health + Provider Config Guard cron (every 3h): probes qnfo-ai + personal-api chat paths.',
+          '3. QNFO Data Freshness Sync cron (every 6h): calendar + email to Vectorize.',
+          '4. Kaizen cycles: every lesson becomes a named gate, dual-written. OPS-SELF-DOC.md is the master index.']
+    out = os.path.join(QO, 'docs', 'FLEET-MANIFEST.md')
+    open(out, 'w', encoding='utf-8').write('\n'.join(L))
+    print('manifest regenerated rows=%d OK=%d drift=%d gap=%d' % (len(rows), ok, drift, gap))
+
+if __name__ == '__main__':
+    main()
