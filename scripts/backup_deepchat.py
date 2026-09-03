@@ -26,6 +26,33 @@ config-state file failed). Exit 0 for OK/PARTIAL, 1 for ERROR/missing token.
 agent.db > limit is uploaded via backup_agentdb_chunked.py (<=90MB parts + manifest, same CLOUDFLARE_API_TOKEN).
 """
 import os, sys, json, time, io, shutil, urllib.request, urllib.error, sqlite3
+import atexit
+
+_LOCK = os.path.join(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp'), 'backup_deepchat.lock')
+
+def _lock_held() -> bool:
+    # mtime-staleness lock: a run started less than 60 min ago means another
+    # backup is (or was very recently) active -> skip instead of queue/stick.
+    # Windows os.kill(pid, 0) is unreliable as a liveness probe, so use age.
+    try:
+        if os.path.exists(_LOCK):
+            age = time.time() - os.path.getmtime(_LOCK)
+            if age < 3600:
+                return True
+        with open(_LOCK, 'w') as f:
+            f.write(str(os.getpid()))
+        atexit.register(_lock_release)
+    except Exception:
+        pass
+    return False
+
+def _lock_release():
+    try:
+        if os.path.exists(_LOCK):
+            os.remove(_LOCK)
+    except Exception:
+        pass
+
 
 TOKEN = os.environ.get('CLOUDFLARE_API_TOKEN', '')
 ACCT = 'edb167b78c9fb901ea5bca3ce58ccc4b'
@@ -53,6 +80,10 @@ def upload(key, data):
     return d.get('success', False)
 
 def main():
+    print('=== RUN ' + time.strftime('%Y-%m-%d %H:%M:%S') + ' ===')
+    if _lock_held():
+        print('SKIP: another backup instance is running (lock held)')
+        return 0
     if not TOKEN:
         print('BACKUP ERROR: CLOUDFLARE_API_TOKEN missing')
         return 1

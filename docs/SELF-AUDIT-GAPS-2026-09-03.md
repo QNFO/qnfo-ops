@@ -49,3 +49,28 @@ S4 - Optimization (P1/P2):
 - qnfo-cloud-ops visibility digest (weekly Mon) reports open/closed/velocity once S3.7 lands.
 - Fleet drift cron (42b1988c) picks up canonical-dir conversions.
 - No item rests with only an owner label: each has a dated/triggered mechanism (sprint, cron, or guard) or explicit user decision.
+
+
+## G2 CORRECTION (same-day re-audit 2026-09-03, CMD EXECUTE S1.1)
+
+Original G2 row claimed backups were not landing ("0 objects"). That was a FALSE NEGATIVE caused by a
+wrong R2 prefix in the verifier: object keys are deepchat/YYYY/MM/yyyyMMdd-HHMMSS/<file> (stamp folder,
+NO day subfolder), so querying prefix deepchat/2026/09/02 matched nothing.
+
+Verified same-turn:
+- Backup IS landing. R2 qnfo-backups/deepchat/2026/09 contains full stamps today incl. agent.db chunked
+  parts + manifest + agent-memory.db (e.g., 20260903-004811, 20260903-064321, 20260903-074636,
+  20260903-082138, 20260903-082157 each: manifest.json + part_001..005).
+- Scheduled task QNFO-AgentDB-Daily-Backup: Enabled, Ready, next 21:30 daily. 09-02 21:30 run produced
+  full 6-file set at 20260902-213009 (log: BACKUP OK (6 files ... agent.db (chunked ...)).
+- ModelKey-Guard task: Enabled, lastResult 0.
+- Root cause of an observed on-demand hang (Run dispatched while session active): multiple overlapping
+  backup instances contending for agent.db snapshot / R2 uploads. Fix deployed to
+  scripts/backup_deepchat.py: single-instance mtime-staleness lock + run delimiter; SKIP path verified
+  (exit 0 fast when lock held).
+
+Lesson (verifier standard): R2 object-list checks MUST use the real stamp prefix
+  deepchat/YYYY/MM/yyyyMMdd-HHMMSS/ or list deepchat/YYYY/MM/ and filter by key; never a day folder.
+
+Residual (dated trigger): monthly RESTORE DRILL - download manifest + parts, reassemble, integrity-check
+  agent.db snapshot -> registered agent_issues source=self-audit-2026-09-03 target 2026-10-03.
