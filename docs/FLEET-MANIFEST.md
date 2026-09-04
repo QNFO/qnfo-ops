@@ -26,7 +26,7 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 | personal-life-search | v1.2.3-env-secret | 2026-08-28 09:48:43 | - | - | GAP (no repo dir) |
 | qnfo-agent-orchestrator | v1.0.0 | 2026-09-03 13:38:01 | qnfo-workers/agent-orchestrator | 1.0.0 | OK |
 | qnfo-agent-ws | 1.3.9 | 2026-08-14 14:50:27 | - | - | GAP (no repo dir) |
-| qnfo-ai | 5.20.7-p1 | 2026-09-03 13:37:56 | qnfo-workers/qnfo-ai | 5.20.7-p1 | OK |
+| qnfo-ai | 5.20.9 | 2026-09-04 03:30:00 | qnfo-workers/qnfo-ai | 5.20.9 | OK |
 | qnfo-ai-patch-test | NO-HEALTH | 2026-09-02 08:35:26 | - | - | GAP (no repo dir) |
 | qnfo-ai-search | 1.0.2 | 2026-08-12 06:30:11 | qnfo-workers/qnfo-ai-search | 1.0.2 | OK |
 | qnfo-archive | 1.2-cors-fixed | 2026-07-30 12:05:58 | - | - | GAP (no repo dir) |
