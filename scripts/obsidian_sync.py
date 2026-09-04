@@ -9,7 +9,7 @@ Overlapping-run guard via msvcrt byte lock. Exit: 0=ok/skip, 3=vault missing, el
 import subprocess, sys, os, time, msvcrt
 
 RCLONE = r"C:\rclone\rclone.exe"
-VAULT = r"D:\Obsidian"
+VAULT = r"C:\Users\LENOVO\Obsidian"
 REMOTE = "primary-r2:d-drive/obsidian"
 BASE = os.path.dirname(os.path.abspath(__file__))
 FILTERS = os.path.join(BASE, "obsidian-sync-filters.txt")
