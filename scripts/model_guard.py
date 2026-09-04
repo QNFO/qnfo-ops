@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """model-guard.py - permanent DEEPCHAT-DEFAULT-MODEL-1 drift guard (2026-09-02).
 Canonical: QNFO/qnfo-ops/scripts/model_guard.py (mirror .deepchat/scripts).
+OPS-EXEC-DEFAULT-1 (2026-09-04): canonical default is QNFO-OPS/ops-exec (hybrid server/client tool loop); the deepseek-v4-flash relay stays available as an explicit model.
 Recurrence-ZERO-1 guard for MODEL-KEY-FILE-DRIFT-1 (app save re-drifts preferredModel to
 deepseek-v4-pro while the DB stays flash). Aligns BOTH stores (MODEL-KEY-DB-ROOT-SOURCE-1:
 DB rows first, then JSON, then read-back both). Idempotent; silent when clean.
@@ -9,7 +10,7 @@ Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix.
 """
 import json, os, sqlite3, sys, tempfile, datetime
 
-DESIRED = {"providerId": "QNFO-OPS", "modelId": "deepseek-v4-flash"}
+DESIRED = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}  # OPS-EXEC-DEFAULT-1 (2026-09-04): main-agent default = hybrid ops-exec loop (deepseek-v4-flash relay remains for explicit relay selection)
 APP_DIR = os.path.expandvars(r"%APPDATA%\DeepChat")
 DB = os.path.join(APP_DIR, "app_db", "agent.db")
 JS = os.path.join(APP_DIR, "app-settings.json")
