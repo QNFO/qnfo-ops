@@ -10,7 +10,7 @@ Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix.
 """
 import json, os, sqlite3, sys, tempfile, datetime
 
-DESIRED = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}  # OPS-EXEC-DEFAULT-1 (2026-09-04): main-agent default = hybrid ops-exec loop (deepseek-v4-flash relay remains for explicit relay selection)
+DESIRED = {"providerId": "deepseek", "modelId": "deepseek-v4-pro"}  # TEMP-ROLLBACK 2026-09-04: ops-exec has unresolved client-side failure in DeepChat (REQUEST FAILED); restored known-working native model until fixed  # OPS-EXEC-DEFAULT-1 (2026-09-04): main-agent default = hybrid ops-exec loop (deepseek-v4-flash relay remains for explicit relay selection)
 APP_DIR = os.path.expandvars(r"%APPDATA%\DeepChat")
 DB = os.path.join(APP_DIR, "app_db", "agent.db")
 JS = os.path.join(APP_DIR, "app-settings.json")
