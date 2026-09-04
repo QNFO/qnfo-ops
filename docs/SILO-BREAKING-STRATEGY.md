@@ -65,7 +65,8 @@ Missing (six gaps):
   all five docs (grep-verified 2026-09-04). Everything is channel fan-out; nothing is
   trust-transitive entry.
 - G2 No proactive participation - the engagement policy is reactive (reply to every genuine
-  comment). No outbound substantive participation in others' conversations or reviews.
+  comment). No outbound participation program exists: the catalog lists open-review surfaces as
+  planned modes, but nothing operationalizes proactive reply-engagement in others' conversations.
 - G3 arXiv parked without an unblock path - C08 is "AMBER, endorsement-conditional" and A22 is a
   moderator cross-list ask, but no doc captures the policy's own documented acquisition path:
   find endorsers among the authors of the papers you cite (info.arxiv.org/help/endorsement.html,
