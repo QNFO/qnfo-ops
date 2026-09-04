@@ -34,7 +34,7 @@ Secret: `RUN_SECRET` (mirrored to ~/.env CALIBRATOR_RUN_SECRET). Auth compare is
 ## Self-* design
 
 - **Self-auditing**: every run writes `verdict_score` (completeness/integrity/plausibility checks) + audit_json. Simulate mode proves the detector fires on injected extreme input.
-- **Self-correcting**: per-probe retry-once; rollback engine verifies prior autonomous actions every run and reverts drift with an audit row + learning; simulated anomalies are auto-resolved when the probe is clean.
+- **Self-correcting**: per-probe retry-once; rollback engine verifies prior autonomous actions every run and reverts drift with an audit row + learning; real anomalies auto-resolve when their probe is clean (verified: vectorize-cal anomaly auto-resolved after the {topK:1} fix). Simulated anomalies are deliberate test artifacts and are resolved manually after verification (they never appear in clean runs by construction).
 - **Self-improving**: EMA baselines with variance-adaptive thresholds; 7d failure-rate probe weighting; learnings table; KV config recommendations published to `qnfo-fleet-config/latest`.
 - **Autonomous adjustments (allowlist, reversible, binding-only)**: tune-threshold, tune-plan, publish-config, retention-cleanup. Every action has before/after JSON, verified next run, rollback on regression.
 
@@ -42,6 +42,8 @@ Secret: `RUN_SECRET` (mirrored to ~/.env CALIBRATOR_RUN_SECRET). Auth compare is
 
 runs / metrics / baselines / anomalies / actions / learnings / state. Probe traffic is
 self-generated calibration traffic (IMPRESSIONS-ZONE-NOT-WORKER-1) and never counted as external.
+Vectorize probe targets the empty `qnfo-calibration` index (query-path latency only; upsert/retrieval
+correctness is owned by the qnfo-memory-mcp search surface).
 
 ## Claims & Evidence
 
@@ -50,7 +52,8 @@ self-generated calibration traffic (IMPRESSIONS-ZONE-NOT-WORKER-1) and never cou
 | Daily run complete with audit score 1.0 | D1 fleet_cal_runs run 189b389b (2026-09-04) | high | VERIFIED |
 | Stress run complete with audit score 1.0 | D1 run 61174815 (2026-09-04) | high | VERIFIED |
 | Adversarial battery: all cases survive (<500) | run 61174815 metrics adv-* | high | VERIFIED |
-| Simulated anomaly detected high + auto-resolved on clean run | anomalies rows 7->resolved | high | VERIFIED |
+| Simulated anomaly detected high (simulate=anomaly) | anomaly id 2: severity high, status resolved, detail test-artifact-resolved-manually | high | VERIFIED |
+| Auto-resolve mechanism on clean run | vectorize-cal anomaly id 1 auto-resolved 2026-09-04 04:59Z after probe fix; 0 open anomalies at close | high | VERIFIED |
 | Rollback engine verifies prior actions | run roll.checked>0, reverted=0 across runs | high | VERIFIED |
 | Service bindings probe siblings (CF 1042 fixed) | run metrics qnfo-ai/infra/auditor 200 | high | VERIFIED |
 | 3 cron schedules live | CF schedules API 2026-09-04 | high | VERIFIED |
