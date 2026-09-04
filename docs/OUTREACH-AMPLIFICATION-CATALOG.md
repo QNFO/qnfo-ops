@@ -1,6 +1,10 @@
 # QNFO/QWAV Outreach Amplification Catalog — WHO ELSE / WHAT OTHER KINDS
 
-> Version 1.0 (2026-09-03) - Owner: QNFO - Status: ACTIVE (planned inventory; nothing enabled yet)
+> Version 1.1 (2026-09-04) - Owner: QNFO - Status: ACTIVE (planned inventory; nothing enabled yet)
+>
+> v1.1 (2026-09-04): section 6 added - six network-structure modes from
+> docs/SILO-BREAKING-STRATEGY.md (the trust-transitivity layer). The original v1.0 content is
+> unchanged below.
 >
 > Claim: beyond the eight audiences and thirteen channel items already listed in
 > OUTREACH-AUTOMATION-STRATEGY.md sections 3 and 4b, there is a further catalog of ~18 reachable
@@ -155,3 +159,23 @@ token, or worker step date-gated behind the parent strategy's activation.
 | Catalog seeded to D1 submissions as planned rows | INSERT with sentinel guard + COUNT readback, this cycle | high | verified |
 | Zero channels enabled; activation date-gated | parent strategy rollout + tier gates; no send path invoked | high | verified |
 | Per-platform TOS assumptions (Green500/MLPerf/PubPeer/meetup) | flagged AMBER; checks recorded before enable | medium | open |
+
+## 6. v1.1 additions (2026-09-04) - the network-structure layer
+
+The v1.0 catalog is channel-complete but contains no trust-transitivity layer. Six new modes
+close that gap; full specs live in docs/SILO-BREAKING-STRATEGY.md (programs P-G..P-K + HA-1).
+Seeded as planned rows in the submissions table this cycle (cat-* ids below).
+
+| Mode | Mechanism | Tier | Priority | Cat id |
+|---|---|---|---|---|
+| arXiv submission + endorsement map | flagship deposits; endorsement acquired via cited-paper authors (policy-documented path, verified live 2026-09-04) | AMBER (account + endorsement); map itself GREEN | P0 | cat-arxiv_endorsement |
+| Proactive reply-engagement | keyword radar over Bluesky/Mastodon/X/HN/LW; one substantive reply per relevant thread, cap 2/day | GREEN (Bluesky/Mastodon); AMBER (X, HN, LW) | P0 | cat-proactive_reply |
+| Hub-ranked contact mining | network_position score (OpenAlex/GitHub/social followers) + hub-tier templates | GREEN | P1 | cat-hub_ranking |
+| Domain-native framing kits | per-domain canon/vocabulary/open-problem packs wired into templates | GREEN | P0 | cat-framing_packs |
+| Bridge-note publication program | 2-4 short technical notes/year that build on external work, reference lists crossing >=2 domains | GREEN | P1 | cat-bridge_notes |
+| Google Scholar profile | one-time human action (owner=user), trigger = ORCID propagation detected by citation_sweep | manual | P1 | cat-scholar_profile |
+
+Why these matter: a filter bubble is an attention network, not a channel gap. These six modes are
+the doors - infrastructure (arXiv), participation (replies), sub-hubs (ranking), language
+(framing), and the reference graph (bridge notes) - the catalog's fan-out list does not reach on
+its own.

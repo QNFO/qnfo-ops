@@ -200,10 +200,11 @@ levers (ORCID propagation, RSS, directory/benchmark registrations), not the push
 | OUTREACH-AMPLIFICATION-CATALOG.md | WHO ELSE (18 audiences) + WHAT OTHER KINDS (24 modes), prioritized | 157 |
 | OUTREACH-EXHAUSTIVE-INVENTORY.md | LIST/SAVE/RECORD EVERYTHING (163 channels, 12 categories A-L) | 273 |
 | OUTREACH-SUCCESS-MAXIMIZATION.md | this doc: success definition, metric space, lever space, risk, compounding | - |
+| SILO-BREAKING-STRATEGY.md | the network-structure layer: six doors, programs P-G..P-K, one-time human actions | - |
 | qnfo-outreach D1 submissions | 163 inv-* rows (planned/live/monitor/excluded) + 19 cat-* curated rows | D1 |
 
 Reading order: Strategy (why) -> Catalog (who + what, prioritized) -> Inventory (everything) ->
-Success-Maximization (how to win). The D1 is the operational registry.
+Success-Maximization (how to win) -> Silo-Breaking (how to cross bubbles). The D1 is the operational registry.
 
 ## 6. The strategic conclusion (honest answer to "greatest chance of success")
 
