@@ -192,7 +192,7 @@ QNFO), every collaboration adds a new author-network, and every benchmark-home p
 MLPerf) is a permanent inbound channel. The levers with the HIGHEST compounding rate are the pull
 levers (ORCID propagation, RSS, directory/benchmark registrations), not the push levers (email).
 
-## 5. Master index (the four documents + the D1 record)
+## 5. Master index (the strategy documents + the D1 record)
 
 | Doc | Scope | Lines |
 |---|---|---|
@@ -201,7 +201,7 @@ levers (ORCID propagation, RSS, directory/benchmark registrations), not the push
 | OUTREACH-EXHAUSTIVE-INVENTORY.md | LIST/SAVE/RECORD EVERYTHING (163 channels, 12 categories A-L) | 273 |
 | OUTREACH-SUCCESS-MAXIMIZATION.md | this doc: success definition, metric space, lever space, risk, compounding | - |
 | SILO-BREAKING-STRATEGY.md | the network-structure layer: six doors, programs P-G..P-K, one-time human actions | - |
-| qnfo-outreach D1 submissions | 163 inv-* rows (planned/live/monitor/excluded) + 19 cat-* curated rows | D1 |
+| qnfo-outreach D1 submissions | 163 inv-* rows (planned/live/monitor/excluded) + 25 cat-* curated rows (v1.1 +6) | D1 |
 
 Reading order: Strategy (why) -> Catalog (who + what, prioritized) -> Inventory (everything) ->
 Success-Maximization (how to win) -> Silo-Breaking (how to cross bubbles). The D1 is the operational registry.
