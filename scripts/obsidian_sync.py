@@ -32,7 +32,7 @@ def main():
             with open(RUNLOG, "a", encoding="utf-8") as f:
                 f.write("[%s] ERROR: vault dir missing\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
             return 3
-        cmd = [RCLONE, "copy", VAULT, REMOTE, "--update", "--transfers", "8", "--retries", "3",
+        cmd = [RCLONE, "copy", VAULT, REMOTE, "--update", "--checksum", "--transfers", "8", "--retries", "3",
                "--log-file", LOG, "--log-level", "INFO"]
         if os.path.exists(FILTERS):
             cmd += ["--filter-from", FILTERS]
