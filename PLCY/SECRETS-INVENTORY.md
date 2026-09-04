@@ -51,3 +51,6 @@ C:/Users/LENOVO/Documents/GitHub/qnfo-ops/PLCY/SECRETS-INVENTORY.md [chars 0-450
 | TEST_TOKEN | qnfo-agent-orchestrator | — | — | single place (test-only) |
 | INDEX_TOKEN | qnfo-intent-orchestrator | — | — | single place (search-index sync) |
 | DIGEST_FROM /
+
+## 2026-09-04 UPDATE: INDEX_TOKEN personal-life-indexer
+| INDEX_TOKEN | personal-life-indexer | secret_text | 2026-09-04 | rotated; value in .deepchat/secrets/qnfo-agent-tokens.json index_token (skill-doc plx-idx-v1 value was stale since 2026-08-20 redeploy) |
