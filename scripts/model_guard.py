@@ -9,7 +9,7 @@ Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix.
 """
 import json, os, sqlite3, sys, tempfile, datetime
 
-DESIRED = {"providerId": "deepseek", "modelId": "deepseek-v4-flash"}
+DESIRED = {"providerId": "QNFO-OPS", "modelId": "deepseek-v4-flash"}
 APP_DIR = os.path.expandvars(r"%APPDATA%\DeepChat")
 DB = os.path.join(APP_DIR, "app_db", "agent.db")
 JS = os.path.join(APP_DIR, "app-settings.json")
