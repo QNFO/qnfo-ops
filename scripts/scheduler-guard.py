@@ -4,11 +4,12 @@ User directive: local scheduled tasks MAX 1x/day; DeepChat is a local front-end,
 no deferred items may rest with only an 'owner' — every closeout resolves them or assigns a date/trigger.
 Asserts against the Roaming app DB cron_jobs table:
   1. no ENABLED local cron fires more than 1x/day (worst-case active-day parse)
-  2. the enabled registry equals the canonical 4-row front-end set (ids below)
+  2. the enabled registry equals the canonical 5-row front-end set (ids below)
   3. zero DISABLED residue rows (superseded cloud functions must not linger)
   4. the 2055e49c one-shot is deleted once stale (SILENT-ROLLOVER-1): next_run_at in the past = FAIL
 Run on every ops cycle and after ANY registry change. Exit 0 = PASS.
 Canonical: QNFO/qnfo-ops/scripts/scheduler-guard.py (mirror .deepchat/scripts).
+2026-09-02: canonical set 4 -> 5 rows (added 6e91c844 C: disk free guard daily, device-bound read).
 """
 import sqlite3, re, sys, datetime
 
@@ -17,6 +18,7 @@ CANONICAL = {
     "aa67d355-5c2e-4f3e-8def-8c0e226a9f11": "12 5 * * *",   # Data Freshness Sync (Outlook calendar read) daily
     "c7f96688-04aa-41e2-8229-4d12da81596f": "0 3 * * *",    # MCP local token config daily
     "42b1988c-42fa-4b2c-8eaa-8a531656fd4f": "0 6 * * 1",    # Fleet Drift & Self-Improvement Audit weekly
+    "6e91c844-974b-4ae7-921c-8f078678fa47": "30 7 * * *",   # C: disk free guard daily (device-bound read, 2026-09-02)
     "2055e49c-5740-4bca-bf96-5266a8a5c8a7": "0 9 6 11 *",   # qwave-qudit one-shot 2026-11-06 (delete after fire)
 }
 ONE_SHOT = "2055e49c-5740-4bca-bf96-5266a8a5c8a7"
@@ -42,6 +44,18 @@ def fires_per_day(cron):
 
 def main():
     fails = []
+    # GIT-BASH-PREF-GUARD-1: agent shell must stay git-bash (auto would re-select windows-powershell via PSModulePath)
+    try:
+        import json as _json, os as _os
+        _sp = _os.path.join(_os.environ.get('APPDATA', ''), 'DeepChat', 'app-settings.json')
+        if _os.path.exists(_sp):
+            with open(_sp, 'r', encoding='utf-8') as _f:
+                _cfg = _json.load(_f)
+            _pref = (_cfg.get('agentCommandShell') or {}).get('preference')
+            if _pref is not None and _pref != 'git-bash':
+                fails.append('agentCommandShell.preference drift: %r (must be git-bash)' % _pref)
+    except Exception as _e:
+        fails.append('could not verify git-bash preference: ' + str(_e))
     try:
         c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=60)
         rows = c.execute("SELECT id, name, enabled, cron_expr, next_run_at FROM cron_jobs").fetchall()
