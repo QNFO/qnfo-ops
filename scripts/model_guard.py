@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """model-guard.py - permanent DEEPCHAT-DEFAULT-MODEL-1 drift guard (2026-09-02).
+Canonical (2026-09-04, OPS-GATEWAY-DEFAULT-1): main agent routes through QNFO-OPS (Cloudflare) - see v4.12 gate.
 Canonical: QNFO/qnfo-ops/scripts/model_guard.py (mirror .deepchat/scripts).
 OPS-EXEC-DEFAULT-1 (2026-09-04): canonical default is QNFO-OPS/ops-exec (hybrid server/client tool loop); the deepseek-v4-flash relay stays available as an explicit model.
 Recurrence-ZERO-1 guard for MODEL-KEY-FILE-DRIFT-1 (app save re-drifts preferredModel to
@@ -10,7 +11,7 @@ Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix.
 """
 import json, os, sqlite3, sys, tempfile, datetime
 
-DESIRED = {"providerId": "deepseek", "modelId": "deepseek-v4-pro"}  # TEMP-ROLLBACK 2026-09-04: ops-exec has unresolved client-side failure in DeepChat (REQUEST FAILED); restored known-working native model until fixed  # OPS-EXEC-DEFAULT-1 (2026-09-04): main-agent default = hybrid ops-exec loop (deepseek-v4-flash relay remains for explicit relay selection)
+DESIRED = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}  # OPS-EXEC-DEFAULT-1 (2026-09-04): main-agent default = hybrid ops-exec loop. TEMP-ROLLBACK removed 2026-09-05: ops-exec client failures fixed (v1.9.2 reasoning_content 400 + v1.9.3 empty-content length retry + v1.9.4 /v1/responses tools) + real-client verified. deepseek-v4-flash relay remains for explicit relay selection.
 APP_DIR = os.path.expandvars(r"%APPDATA%\DeepChat")
 DB = os.path.join(APP_DIR, "app_db", "agent.db")
 JS = os.path.join(APP_DIR, "app-settings.json")
