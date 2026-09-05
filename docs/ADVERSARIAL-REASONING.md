@@ -2,7 +2,7 @@
 
 Status: canonical single source of truth for adversarial self-checking across QNFO agent surfaces.
 Applies to: the DeepChat system prompt, all CMD templates, all skills (SKILL.md), and all
-Cloudflare worker system prompts (qnfo-ai, qnfo-ops, personal-api, agent-orchestrator, tools-mcp, etc.).
+Cloudflare worker system prompts (qnfo-ai, qnfo-ops, personal-api, agent-orchestrator, qnfo-ipatent, qnfo-intent-orchestrator).
 
 ## Why this exists
 
