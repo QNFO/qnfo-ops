@@ -1,6 +1,6 @@
 # QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem
 
-> Auto-generated 2026-09-06 21:05 UTC by fleet-manifest-sweep.py v2.1 (self-contained enumeration + /health probes).
+> Auto-generated 2026-09-06 21:06 UTC by fleet-manifest-sweep.py v2.1 (self-contained enumeration + /health probes).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates this file from live CF state - do NOT hand-edit;
 > deploy history lives in qnfo-audit deployment_history + git log.
 
@@ -16,7 +16,7 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 |---|---|---|---|---|---|
 | calendar-api | 0.3.0 | 2026-09-03 04:46:55 | qnfo-workers/calendar | 0.3.0 | OK |
 | events-radar | 1.0.1 | 2026-09-02 11:14:48 | qnfo-workers/events-radar | 1.0.1 | OK |
-| jnl-referee | 0.3.0 | 2026-09-06 21:04:22 | qnfo-workers/jnl-referee | 0.1.1 | DRIFT repo=0.1.1 |
+| jnl-referee | 0.3.0 | 2026-09-06 21:04:22 | qnfo-workers/jnl-referee | 0.3.0 | OK |
 | jnl-watch | 0.1.6 | 2026-09-06 11:58:02 | qnfo-workers/jnl-watch | 0.1.6 | OK |
 | job-market-watch | NO-HEALTH | 2026-09-01 11:28:57 | - | - | GAP (no repo dir) |
 | obsidian-writer | NO-HEALTH | 2026-09-01 11:11:34 | - | - | GAP (no repo dir) |
