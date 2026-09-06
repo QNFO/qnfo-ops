@@ -1,6 +1,6 @@
 # QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem
 
-> Auto-generated 2026-09-06 07:51 UTC by fleet-manifest-sweep.py v2.0 (self-contained enumeration + /health probes).
+> Auto-generated 2026-09-06 09:04 UTC by fleet-manifest-sweep.py v2.0 (self-contained enumeration + /health probes).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates this file from live CF state - do NOT hand-edit;
 > deploy history lives in qnfo-audit deployment_history + git log.
 
@@ -27,7 +27,7 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 | qnfo-agent-orchestrator | v1.0.0 | 2026-09-05 20:47:42 | qnfo-workers/agent-orchestrator | 1.0.0 | OK |
 | qnfo-agent-ws | 1.3.9 | 2026-08-14 14:50:27 | - | - | GAP (no repo dir) |
 | qnfo-ai | 5.21.1 | 2026-09-05 20:47:42 | qnfo-workers/qnfo-ai | 5.21.1 | OK |
-| qnfo-ai-calibration | 1.1.1 | 2026-09-05 07:34:23 | qnfo-workers/qnfo-ai-calibration | 1.1.1 | OK |
+| qnfo-ai-calibration | 1.1.2 | 2026-09-06 08:14:43 | qnfo-workers/qnfo-ai-calibration | 1.1.2 | OK |
 | qnfo-ai-patch-test | NO-HEALTH | 2026-09-02 08:35:26 | - | - | GAP (no repo dir) |
 | qnfo-ai-search | 1.0.2 | 2026-08-12 06:30:11 | qnfo-workers/qnfo-ai-search | 1.0.2 | OK |
 | qnfo-analytics | NO-VERSION | 2026-09-05 20:19:58 | - | - | GAP (no repo dir) |
@@ -62,7 +62,7 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 | qnfo-latex | NO-HEALTH | 2026-09-03 14:52:32 | - | - | GAP (no repo dir) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-01 07:12:40 | qnfo-workers/personal-lifecycle | 1.0.0 | DRIFT repo=1.0.0 |
 | qnfo-memory-mcp | 2.0.3 | 2026-09-05 07:15:14 | qnfo-workers/memory-mcp | 2024-11-05 | DRIFT repo=2024-11-05 |
-| qnfo-ops | 1.9.9 | 2026-09-06 07:24:29 | qnfo-workers/qnfo-ops | 1.9.9 | OK |
+| qnfo-ops | 2.0.1 | 2026-09-06 08:57:58 | qnfo-workers/qnfo-ops | 2.0.1 | OK |
 | qnfo-outreach | 0.1.0 | 2026-09-02 22:32:56 | qnfo-workers/qnfo-outreach | 0.1.0 | OK |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | - | - | GAP (no repo dir) |
 | qnfo-paper-reviser | 1.0.1 | 2026-09-06 06:39:36 | qnfo-workers/qnfo-paper-reviser | 1.0.1 | OK |
