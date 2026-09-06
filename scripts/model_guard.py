@@ -11,7 +11,7 @@ Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix.
 """
 import json, os, sqlite3, sys, tempfile, datetime
 
-DESIRED = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}  # OPS-EXEC-DEFAULT-1 (2026-09-04): main-agent default = hybrid ops-exec loop. TEMP-ROLLBACK removed 2026-09-05: ops-exec client failures fixed (v1.9.2 reasoning_content 400 + v1.9.3 empty-content length retry + v1.9.4 /v1/responses tools) + real-client verified. deepseek-v4-flash relay remains for explicit relay selection.
+DESIRED = {"providerId": "deepseek", "modelId": "deepseek-v4-pro"}  # TEMP-ROLLBACK-2 (2026-09-05 21:30 UTC): main-agent default rolled OFF ops-exec - ops-exec fails on 1MB+ /v1/responses conversation histories (the DeepChat main agent sends its full context every turn; observed 331KB->1.05MB growth, 59s latencies, DeepSeek 400 tool-call/context classes, empty-content 'Provider stopped the response', 20:35-21:00 ok=0 cluster). OPS-EXEC stays the dedicated Ops agent default + ops tasks; the main-agent default returns to QNFO-OPS/ops-exec only after ops-exec handles >1MB contexts (server-side history truncation to model context + verified real-client chat at 1MB). deepseek-v4-flash relay remains available.
 APP_DIR = os.path.expandvars(r"%APPDATA%\DeepChat")
 DB = os.path.join(APP_DIR, "app_db", "agent.db")
 JS = os.path.join(APP_DIR, "app-settings.json")
