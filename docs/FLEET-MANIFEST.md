@@ -1,6 +1,6 @@
 # QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem
 
-> Auto-generated 2026-09-06 20:48 UTC by fleet-manifest-sweep.py v2.1 (self-contained enumeration + /health probes).
+> Auto-generated 2026-09-06 20:53 UTC by fleet-manifest-sweep.py v2.1 (self-contained enumeration + /health probes).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates this file from live CF state - do NOT hand-edit;
 > deploy history lives in qnfo-audit deployment_history + git log.
 
@@ -10,14 +10,13 @@ Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purp
 (3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced;
 GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send bearer).
 
-## Fleet (72 workers)
+## Fleet (71 workers)
 
 | Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |
 |---|---|---|---|---|---|
 | calendar-api | 0.3.0 | 2026-09-03 04:46:55 | qnfo-workers/calendar | 0.3.0 | OK |
 | events-radar | 1.0.1 | 2026-09-02 11:14:48 | qnfo-workers/events-radar | 1.0.1 | OK |
-| jnl-deploy-test | NO-HEALTH | 2026-09-06 20:44:08 | - | - | GAP (no repo dir) |
-| jnl-referee | 0.1.0 | 2026-09-06 20:44:49 | qnfo-workers/jnl-referee | 0.1.0 | OK |
+| jnl-referee | 0.1.1 | 2026-09-06 20:52:04 | qnfo-workers/jnl-referee | 0.1.1 | OK |
 | jnl-watch | 0.1.6 | 2026-09-06 11:58:02 | qnfo-workers/jnl-watch | 0.1.6 | OK |
 | job-market-watch | NO-HEALTH | 2026-09-01 11:28:57 | - | - | GAP (no repo dir) |
 | obsidian-writer | NO-HEALTH | 2026-09-01 11:11:34 | - | - | GAP (no repo dir) |
@@ -52,13 +51,13 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 | qnfo-errata-publish | 0.7.1-relid-fix | 2026-09-04 14:40:11 | qnfo-workers/qnfo-errata-publish | 0.7.1 | DRIFT repo=0.7.1 |
 | qnfo-errata-respond | 0.4.1 | 2026-09-03 13:38:10 | qnfo-workers/qnfo-errata-respond | 0.4.1 | OK |
 | qnfo-errata-watch | 0.2.1 | 2026-09-03 13:38:14 | qnfo-workers/qnfo-errata-watch | 0.2.1 | OK |
-| qnfo-error-selfheal | 1.0.1 | 2026-09-06 20:34:26 | qnfo-workers/qnfo-error-selfheal | 1.0.1 | OK |
+| qnfo-error-selfheal | 1.0.2 | 2026-09-06 20:50:21 | qnfo-workers/qnfo-error-selfheal | 1.0.2 | OK |
 | qnfo-events | 1.1.0 | 2026-09-04 02:04:15 | qnfo-workers/qnfo-events | 1.1.0 | OK |
 | qnfo-fleet-calibrator | 1.0.0 | 2026-09-04 05:10:58 | qnfo-workers/qnfo-fleet-calibrator | 1.0.0 | OK |
 | qnfo-gateway | NO-HEALTH | 2026-09-03 18:23:45 | - | - | GAP (no repo dir) |
 | qnfo-idea-factory | 2.7.3 | 2026-09-04 14:27:40 | qnfo-workers/qnfo-idea-factory | 2.7.3 | OK |
 | qnfo-idea-miner | NO-HEALTH | 2026-09-03 13:37:06 | - | - | GAP (no repo dir) |
-| qnfo-idea-triage | 1.3.4-orch-custom-route | 2026-09-06 20:45:37 | qnfo-workers/qnfo-idea-triage | 1.3.4-orch-custom-route | OK |
+| qnfo-idea-triage | 1.3.4-orch-custom-route | 2026-09-06 20:49:21 | qnfo-workers/qnfo-idea-triage | 1.3.4-orch-custom-route | OK |
 | qnfo-impact | 0.1.0 | 2026-09-01 09:56:57 | qnfo-workers/qnfo-impact | - | PARTIAL (no repo deployed-current) |
 | qnfo-infra | 1.2.3 | 2026-09-05 20:44:04 | qnfo-workers/qnfo-infra | 1.2.3 | OK |
 | qnfo-intent-orchestrator | 1.3.4 | 2026-09-05 20:47:40 | qnfo-workers/qnfo-intent-orchestrator | 1.3.4 | OK |
@@ -69,12 +68,12 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 | qnfo-ops | 2.5.1 | 2026-09-06 11:51:07 | qnfo-workers/qnfo-ops | 2.5.1 | OK |
 | qnfo-outreach | 0.1.0 | 2026-09-02 22:32:56 | qnfo-workers/qnfo-outreach | 0.1.0 | OK |
 | qnfo-paper-indexer | 2.2-scheduled-daily | 2026-08-12 13:07:52 | qnfo-workers/qnfo-paper-indexer | - | PARTIAL (no repo deployed-current) |
-| qnfo-paper-reviser | 1.0.2-envelope-safe | 2026-09-06 20:34:43 | qnfo-workers/qnfo-paper-reviser | 1.0.1 | DRIFT repo=1.0.1 |
+| qnfo-paper-reviser | 1.0.2-envelope-safe | 2026-09-06 20:49:21 | qnfo-workers/qnfo-paper-reviser | 1.0.1 | DRIFT repo=1.0.1 |
 | qnfo-pdf | 1.0.0 | 2026-09-03 14:35:15 | qnfo-workers/qnfo-pdf | 1.0.0 | OK |
-| qnfo-pipeline-ops | 0.5.1-intake-single-issue | 2026-09-06 20:33:45 | qnfo-workers/qnfo-pipeline-ops | 0.5.1-intake-single-issue | OK |
+| qnfo-pipeline-ops | 0.5.1-intake-single-issue | 2026-09-06 20:49:21 | qnfo-workers/qnfo-pipeline-ops | 0.5.1-intake-single-issue | OK |
 | qnfo-proof | 0.1.0 | 2026-09-04 12:42:42 | qnfo-workers/qnfo-proof | 0.1.0 | OK |
 | qnfo-qwav | 2.1.0 | 2026-09-03 13:43:34 | qnfo-workers/qnfo-qwav | - | PARTIAL (no repo deployed-current) |
-| qnfo-research-exec | 0.5.16-v2drain-only | 2026-09-06 20:30:32 | qnfo-workers/qnfo-research-exec | 0.5.15-atomic-drain | DRIFT repo=0.5.15-atomic-drain |
+| qnfo-research-exec | 0.5.16-v2drain-only | 2026-09-06 20:49:21 | qnfo-workers/qnfo-research-exec | 0.5.15-atomic-drain | DRIFT repo=0.5.15-atomic-drain |
 | qnfo-research-radar | NO-HEALTH | 2026-09-01 17:45:42 | - | - | GAP (no repo dir) |
 | qnfo-research-supervisor | 1.1.1 | 2026-09-06 06:25:13 | qnfo-workers/qnfo-research-supervisor | 1.1.1 | OK |
 | qnfo-skill-sync | v1.1.2 | 2026-09-03 13:39:39 | qnfo-workers/qnfo-skill-sync | 1.1.2 | OK |
@@ -91,8 +90,8 @@ GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send b
 
 Cron-density monoliths (>=4 schedules; merge/split candidates): qnfo-cloud-ops, qnfo-lifecycle, qnfo-social
 
-No canonical repo dir (GAP - re-home per FLEET-SELF-DOC-1 or retire): 14
-- jnl-deploy-test, job-market-watch, obsidian-writer, osf-integrity-check, personal-life-maintain, qnfo-agent-ws, qnfo-analytics, qnfo-arxiv-radar, qnfo-email, qnfo-gateway, qnfo-idea-miner, qnfo-research-radar, qnfo-twin-maintain, research-daily-brief
+No canonical repo dir (GAP - re-home per FLEET-SELF-DOC-1 or retire): 13
+- job-market-watch, obsidian-writer, osf-integrity-check, personal-life-maintain, qnfo-agent-ws, qnfo-analytics, qnfo-arxiv-radar, qnfo-email, qnfo-gateway, qnfo-idea-miner, qnfo-research-radar, qnfo-twin-maintain, research-daily-brief
 
 Dormant >45d since modified (archive/retire candidates): none
 
@@ -101,10 +100,10 @@ Dormant >45d since modified (archive/retire candidates): none
 
 ## Summary
 
-- Total workers: 72
+- Total workers: 71
 - Self-doc OK: 43
 - Drift: 6
-- GAP/PARTIAL: 23
+- GAP/PARTIAL: 22
 
 ## Self-improvement loop
 
