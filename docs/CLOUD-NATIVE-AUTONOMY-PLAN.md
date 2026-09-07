@@ -22,6 +22,15 @@ Cloudflare is canonical; local Windows state is an ephemeral, device-bound mirro
 | qnfo-blank-audit | 40 4 * * * (verified) | blank/fallback gateway audit |
 | edge idea intake | event | ChatBox/Android -> qnfo-ai -> glm intent classifier -> orchestrator |
 
+### Publish pipeline invariants
+
+- **SLUG-CAP-80-1:** living-paper `papers.slug` is capped at 80 chars BY DESIGN
+  (qnfo-research-exec slugify: lowercase, non-alphanumeric -> `-`, trim, `slice(0,80)`).
+  Truncation is silent in the pipeline but consistent across D1 `papers.slug`, gateway
+  routes, R2 mirror keys and Vectorize ids, so there is no functional break. Lengthening
+  slugs requires Vectorize re-id per SLUG-RENAME-VECTORIZE-ORPHAN-1 — keep the cap unless
+  that migration is planned. (Documented 2026-09-07; register row 52.)
+
 ## Layer 1 — Auditing / monitoring
 
 | Mechanism | Cadence | Scope |
