@@ -62,6 +62,17 @@ Reconciliation then makes convergence and divergence explicit instead of implici
 - PDF page-1 front matter gate applies (PDF-FRONT-MATTER-1); publication prose gates apply
   (PUBLICATION-BRAND-LANGUAGE-1, PUBLICATION-META-PROSE-1, ANTI-TELEGRAPH-1).
 
+### 3.2a TOOL-ACCESS PROVENANCE AMENDMENT (2026-09-08, after cycle-1 writer collection)
+- Per-writer tool-access status is a REQUIRED provenance field in \`MANIFEST.json\`.
+- Confirmed: child sessions (deepchat_subagents) hit the frozen View ceiling — ALL subtools
+  refused at dispatch, including \`write\`. Writers therefore deliver knowledge-only samples
+  inline; the parent materializes files and records the child answer sha256 as the
+  collection-time anchor. This is a DEGRADED ensemble mode, not a failure: independence is
+  preserved (isolated contexts, no cross-communication), and the provenance record carries
+  the degradation honestly.
+- A parent verification pass (citation existence + key-number sourcing) is MANDATORY before
+  reconciliation consumes any knowledge-only draft.
+
 ## 4. Cycle 1 (registered 2026-09-08)
 
 - **Theme:** the energy floor of fault-tolerant quantum computing at the 1,000-logical-qubit scale
