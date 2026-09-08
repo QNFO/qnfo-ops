@@ -21,6 +21,7 @@ INTERNAL_MODELS = {
     "@cf/deepseek-ai/deepseek-v4-flash-0731": False,    # paper-reviser + qnfo-social compose
     "@cf/zai-org/glm-5.3-flash": False,                 # qnfo-kaizen
 }
+PERSONAL_PATH = "C:/Users/LENOVO/Dev/qnfo-workers/personal-api/worker.js"
 
 def main() -> int:
     path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH
@@ -57,9 +58,19 @@ def main() -> int:
             problems.append("internal " + mid + " missing from MAX_OUT table")
         elif cap < FLOOR_OUT:
             problems.append("internal " + mid + " MAX_OUT=" + str(cap))
+    try:
+        psrc = open(PERSONAL_PATH, encoding="utf-8", errors="replace").read()
+        for capname in ("MAX_OUT_CAP", "REASON_OUT_CAP"):
+            cm = re.search(r"var " + capname + r" = (\d+(?:\.\d+)?(?:e\d+)?)", psrc)
+            if not cm:
+                problems.append("personal-api " + capname + " not found")
+            elif float(cm.group(1)) < FLOOR_OUT:
+                problems.append("personal-api " + capname + "=" + cm.group(1))
+    except OSError:
+        problems.append("personal-api worker.js not readable")
     if problems:
         print("FAIL:", "; ".join(problems)); return 1
-    print("PASS: %d catalog models checked, %d exempted, %d internal checked, DEFAULT_MAX_OUT=%d" % (seen, len(EXEMPT), len(INTERNAL_MODELS), default))
+    print("PASS: %d catalog models checked, %d exempted, %d internal checked, personal-api ok, DEFAULT_MAX_OUT=%d" % (seen, len(EXEMPT), len(INTERNAL_MODELS), default))
     return 0
 
 if __name__ == "__main__":

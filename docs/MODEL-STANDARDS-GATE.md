@@ -28,8 +28,10 @@ context window). ALL MODELS MUST SUPPORT MINIMUM 32K OUTPUT AND 128K CONTEXT WIN
 2.1 qnfo-ops v2.6.1 (OUT-32K-1): DEFAULT_MAX_OUT 65536, OPS_ANSWER_CAP 65536,
     TOOL_ROUND_MAX 32768, TOOL_RESULT_CAP 32768, relay clamp 32768, MODEL_CTX 1048576.
     PROOF: live bundle sha probe 2026-09-08, /health v2.6.1.
-2.2 personal-api v3.2.1-out32k: MAX_OUT_CAP 32768, REASON_OUT_CAP 32768,
-    DEFAULT_MAX_TOKENS 32768 (reason path gpt-oss-120b ctx 128000).
+2.2 personal-api v3.2.2-maxout200k: MAX_OUT_CAP 200000 (non-reason path), REASON_OUT_CAP
+    32768, DEFAULT_MAX_TOKENS 32768 (reason path gpt-oss-120b ctx 128000). Reconcile
+    round 2: a concurrent deploy restored MAX_OUT_CAP 2e5; both caps remain >= 32K floor,
+    adopted as canonical per DEPLOY-LAST-WINS-RECONCILE-1.
 2.3 qnfo-ai v5.21.3: DEFAULT_MAX_OUT 32768; Workers AI ceilings raised where the
     platform accepts them; cap-halving retry + contextAwareTarget keep 400s self-healing
     when a raised ceiling is refused upstream. /v1/models advertises honest values only.
@@ -82,3 +84,8 @@ advertisement. Any NEW catalog addition must meet 1.1 or enter this registry wit
   PASS-WITH-NOTES remediated same-cycle - registry gap llama-3.3-70b-instruct-fp8-fast
   (WA ctx 24000), 1.3 attribution corrected (oldest ChatBox snapshot 16384, not 2-4K),
   changelog hashes corrected, guard INTERNAL_MODELS completeness check added.
+- 2026-09-08 CMD CONTINUE reconcile: concurrent deploy personal-api v3.2.2-maxout200k
+  (MAX_OUT_CAP 2e5 restored; >= floor, canonical per DEPLOY-LAST-WINS-RECONCILE-1); doc
+  2.2 re-anchored; guard extended to enforce personal-api MAX_OUT_CAP/REASON_OUT_CAP;
+  client stores re-verified (DB ops-exec 131072/1048576, personal-twin 32768/128K+,
+  default keys QNFO-OPS/ops-exec).
