@@ -16,10 +16,12 @@ context window). ALL MODELS MUST SUPPORT MINIMUM 32K OUTPUT AND 128K CONTEXT WIN
     or (b) registered in the exemption registry (section 4) with per-model evidence of
     the platform-native cap. Silent non-compliance is a HARD finding.
 
-1.3 Client-side maxOutput fields are layer 1 of output truncation. After every model
-    change, verify ChatBox per-model maxOutput, DeepChat DB model_configs.config_json,
-    AND Roaming app-settings.json provider model entries - the 2-4K class of bug lives
-    there, not in the servers.
+1.3 Truncation lived on BOTH layers: the servers capped answers at 16384 (and 8192 in
+    the OPS-LATENCY-1 era) while the oldest ChatBox ops-exec snapshot reads 16384 - not
+    2-4K (the user's 2-4K observation predates the backup chain; it most plausibly
+    matches the old 8192 server answer cap). After every model change, verify all of:
+    ChatBox per-model maxOutput, DeepChat DB model_configs.config_json, Roaming
+    app-settings.json provider model entries, and the live bundle caps (section 5).
 
 ## 2. Enforcement in production
 
@@ -57,6 +59,7 @@ context window). ALL MODELS MUST SUPPORT MINIMUM 32K OUTPUT AND 128K CONTEXT WIN
 | qwen2.5-coder-32b | 32768 | 16384 | Workers AI native; cap-halving settles 16K |
 | deepseek-r1-qwen-32b | 80000 | 32768 | Workers AI ctx 80K (output compliant) |
 | llama-3.2-11b-vision | 128000 | 4096 | vision/OCR utility; WA output cap |
+| llama-3.3-70b-instruct-fp8-fast | 24000 | 8192 | fleet-advisor ADVISOR_MODEL; WA catalog ctx 24000, output 8192 (fp8-fast tier, not catalog-advertised); internal short-form use (max_tokens <= 350) |
 | bge-base-en-v1.5 (embedding) | n/a | n/a | embedding - no generative output |
 
 Retirement of any exempted model is a supported alternative; exemption keeps honest
@@ -74,4 +77,8 @@ advertisement. Any NEW catalog addition must meet 1.1 or enter this registry wit
 ## 6. Changelog
 
 - 2026-09-08: created; audit PASS; exemptions registered; deploy-state commits
-  qnfo-workers dfa783c (model-standards) + fleet sync dd29740.
+  qnfo-workers 3e0511a (model-standards, post-rebase) + 7046ce0 (fleet sync).
+- 2026-09-08 red-team round 2 (5-adversary, parent-direct per CHILD-FROZEN-VIEW):
+  PASS-WITH-NOTES remediated same-cycle - registry gap llama-3.3-70b-instruct-fp8-fast
+  (WA ctx 24000), 1.3 attribution corrected (oldest ChatBox snapshot 16384, not 2-4K),
+  changelog hashes corrected, guard INTERNAL_MODELS completeness check added.

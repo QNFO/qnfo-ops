@@ -13,6 +13,14 @@ EXEMPT = {
 }
 FLOOR_OUT, FLOOR_CTX = 32768, 128000
 DEFAULT_PATH = "C:/Users/LENOVO/Dev/qnfo-workers/qnfo-ai/worker.js"
+# Internal worker model constants (COMPLETENESS check): id -> exempt bool.
+# Non-exempt ids must appear in the worker's MAX_OUT table with cap >= 32768.
+INTERNAL_MODELS = {
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": True,   # fleet-advisor ADVISOR_MODEL; WA ctx 24000 (catalog 2026-09-08)
+    "@cf/openai/gpt-oss-120b": False,                   # fleet-advisor REVIEW_MODEL / personal-api reason path
+    "@cf/deepseek-ai/deepseek-v4-flash-0731": False,    # paper-reviser + qnfo-social compose
+    "@cf/zai-org/glm-5.3-flash": False,                 # qnfo-kaizen
+}
 
 def main() -> int:
     path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH
@@ -38,9 +46,20 @@ def main() -> int:
             problems.append(name + ": maxOut=" + str(out) + " ctx=" + str(ctx))
     if default < FLOOR_OUT:
         problems.append("DEFAULT_MAX_OUT=" + str(default))
+    maxOutTbl = {}
+    for m in re.finditer(r'"(@cf/[^"]+)":\s*(\d+)', src):
+        maxOutTbl[m.group(1)] = int(m.group(2))
+    for mid, exempt in INTERNAL_MODELS.items():
+        if exempt:
+            continue
+        cap = maxOutTbl.get(mid)
+        if cap is None:
+            problems.append("internal " + mid + " missing from MAX_OUT table")
+        elif cap < FLOOR_OUT:
+            problems.append("internal " + mid + " MAX_OUT=" + str(cap))
     if problems:
         print("FAIL:", "; ".join(problems)); return 1
-    print("PASS: %d catalog models checked, %d exempted, DEFAULT_MAX_OUT=%d" % (seen, len(EXEMPT), default))
+    print("PASS: %d catalog models checked, %d exempted, %d internal checked, DEFAULT_MAX_OUT=%d" % (seen, len(EXEMPT), len(INTERNAL_MODELS), default))
     return 0
 
 if __name__ == "__main__":
