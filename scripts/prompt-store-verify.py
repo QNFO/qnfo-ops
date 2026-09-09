@@ -14,7 +14,7 @@ Exit codes: 0 healthy | 1 violations found | 2 store unreadable
 
 Scheduled guard: Daily Ops cronjob (216e1d12) check #6 runs this daily; notify-on-failure.
 """
-import json, sqlite3, sys, os
+import json, sqlite3, sys, os, subprocess
 
 DEFAULT_PATHS = {
     "repo": r"C:\Users\LENOVO\Documents\GitHub\qnfo-skills\prompt-stores\customPrompts.json",
@@ -182,9 +182,21 @@ def main():
     rc = max(rc, 1 if check_system_prompt_parity() else 0)
     rc = max(rc, 1 if check_skill_anchor_parity() else 0)
     rc = max(rc, 0 if check_mcp_autoapprove_parity() else 1)
+    rc = max(rc, 0 if check_gate_manifest() else 1)
+
+    # ADVERSARIAL-REASONING-1 sweep (2026-09-05): fold the adversarial-reasoning guard into
+    # this parity gate so adversarial content (skills/templates/system-prompt/worker prompts)
+    # is swept every ops cycle (runs via Daily Ops cronjob 216e1d12 check #6 + after each
+    # dual-write). Gracefully skips when the guard is not co-located.
+    _ag = os.path.join(os.path.dirname(os.path.abspath(__file__)), "adversarial-guard.py")
+    if os.path.isfile(_ag):
+        _agr = subprocess.run([sys.executable, _ag], capture_output=True, text=True)
+        if _agr.stdout:
+            print(_agr.stdout.strip()[-1500:])
+        rc = max(rc, 1 if _agr.returncode != 0 else 0)
 
     if rc == 0:
-        print("PROMPT-STORE-VERIFY: PASS (schema + parity + system-prompt parity)")
+        print("PROMPT-STORE-VERIFY: PASS (schema + parity + system-prompt parity + gate manifest)")
     return rc
 
 
@@ -364,6 +376,36 @@ def check_mcp_autoapprove_parity():
     except Exception as e:
         print("[MCP-AUTOAPPROVE-PARITY] check skipped: %s" % e)
         return True
+
+
+def check_gate_manifest():
+    """Gate-manifest validation (CODEPARSE row 170): validate QNFO/qnfo-schemas gate
+    manifests (bootstrap 17 + full 208) with the registry's own validator so the
+    code-parsable MANDATORY gate chain is swept every ops cycle. Single source of truth
+    is validate.py in the qnfo-schemas checkout; gracefully skips when not co-located."""
+    _cands = [
+        os.environ.get("QNFO_SCHEMAS_DIR", ""),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Dev", "qnfo-schemas"),
+        r"C:\Users\LENOVO\Dev\qnfo-schemas",
+    ]
+    _base = next((c for c in _cands if c and os.path.isfile(os.path.join(c, "validate.py"))), None)
+    if not _base:
+        print("[GATE-MANIFEST] check skipped: qnfo-schemas checkout not found (set QNFO_SCHEMAS_DIR)")
+        return True
+    _mf = ["gates/bootstrap-manifest.json", "gates/full-manifest.json"]
+    _missing = [m for m in _mf if not os.path.isfile(os.path.join(_base, m))]
+    if _missing:
+        print("[GATE-MANIFEST] FAIL missing manifest(s): %s" % ", ".join(_missing))
+        return False
+    _r = subprocess.run([sys.executable, os.path.join(_base, "validate.py")]
+                        + [os.path.join(_base, m) for m in _mf], capture_output=True, text=True, cwd=_base)
+    if _r.stdout:
+        print(_r.stdout.strip()[-1800:])
+    if _r.returncode != 0:
+        print("[GATE-MANIFEST] FAIL (validator exit %d)" % _r.returncode)
+        return False
+    print("[GATE-MANIFEST] PASS (bootstrap + full gate manifest schema-validated)")
+    return True
 
 
 if __name__ == "__main__":
