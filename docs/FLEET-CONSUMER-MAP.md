@@ -34,6 +34,15 @@
 - qnfo-code-agent, qnfo-code-orchestrator, qnfo-container-executor, qnfo-containers-pilot
   (container cluster: writes fail or are audit noise; retirement registered with silent period)
 
+## Retirement log
+
+- 2026-09-09: qnfo-system-health RETIRED (worker deleted via CF API, script id 90022bfc; fleet 76->75).
+  Zero inbound consumers (binding scan); output superseded by fleet.qnfo.org dashboard;
+  daily obsidian note re-homed into fleet-mgmt merge (register row 162).
+- Container cluster (code-agent, code-orchestrator, container-executor, containers-pilot):
+  retirement BLOCKED by open Containers evaluation rows 92/96/97/99 (due 09-15) - pilot owns
+  the live PY_CONTAINER DO namespace. Register row 161 re-dated to 2026-09-22.
+
 ## Registry semantics
 
 service_registry (qnfo-audit): 77 live purposes populated 2026-09-09; 5 ghost rows (no live
