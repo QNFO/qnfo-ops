@@ -1,9 +1,17 @@
-// fleet-executor v0.1.0 - dynamic task execution engine
+// fleet-executor v0.2.0 - dynamic task execution engine
 // Reads fleet_tasks from qnfo-audit D1, executes by type, writes fleet_runs ledger.
-const VERSION = "fleet-executor/0.1.0";
+// v0.2.0: all 9 D1 stores bound (AUDIT/LIVING/PORTFOLIO/OUTREACH/GRAPH/JNL/IPATENT/CMS/PERSONAL) + workflow type.
+const VERSION = "fleet-executor/0.2.0";
 
 function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: { "content-type": "application/json" } });
+}
+
+function dbFor(def, env) {
+  const name = (def && def.db) || "AUDIT";
+  const b = env[name];
+  if (!b) throw new Error("no D1 binding: " + name);
+  return b;
 }
 
 async function runAI(def, env) {
@@ -17,8 +25,9 @@ async function runAI(def, env) {
 }
 
 async function runSQL(def, env) {
-  const res = await env.AUDIT.prepare(def.sql).all();
-  return { type: "sql", rows: (res.results || []).length, sample: (res.results || []).slice(0, 3) };
+  const db = dbFor(def, env);
+  const res = await db.prepare(def.sql).all();
+  return { type: "sql", db: def.db || "AUDIT", rows: (res.results || []).length, sample: (res.results || []).slice(0, 3) };
 }
 
 async function runHTTP(def) {
@@ -27,13 +36,26 @@ async function runHTTP(def) {
   return { type: "http", status: resp.status, body: text.slice(0, 500) };
 }
 
+async function executeStep(step, env) {
+  if (step.type === "ai") return runAI(step, env);
+  if (step.type === "sql") return runSQL(step, env);
+  if (step.type === "http") return runHTTP(step);
+  throw new Error("unsupported step type: " + step.type);
+}
+
 async function executeTask(task, env) {
   let def = {};
   try { def = JSON.parse(task.definition || "{}"); } catch (e) { def = {}; }
-  if (task.type === "ai") return runAI(def, env);
-  if (task.type === "sql") return runSQL(def, env);
-  if (task.type === "http") return runHTTP(def);
-  throw new Error("unsupported task type: " + task.type);
+  if (task.type === "workflow") {
+    const steps = def.steps || [];
+    const results = [];
+    for (let i = 0; i < steps.length; i++) {
+      results.push(await executeStep(steps[i], env));
+    }
+    return { type: "workflow", steps_run: results.length, results: results };
+  }
+  def.type = task.type;
+  return executeStep(def, env);
 }
 
 export default {
