@@ -1,114 +1,191 @@
-# QNFO Systems-Level Report Card - Autonomy & Intelligence
+# QNFO Systems-Level Report Card — Fleet Autonomy & Intelligence
 
-Status: canonical | Version 1.0 | 2026-09-10 | Owner: QNFO ops
-Canonical: qnfo-ops/docs/SYSTEMS-REPORT-CARD.md
-Companions: AUTONOMOUS-FLEET-ARCHITECTURE.md (AF-1); SERVER-SIDE-EXEC-CLIENT-MATRIX-2026-09-09.md
-Live surface: fleet.qnfo.org ("Systems report card" section; /api/integration)
+Canonical · v1.1 · 2026-09-10 · owner QNFO ops
+This file: qnfo-ops/docs/SYSTEMS-REPORT-CARD.md  (the canonical name referenced by the fleet dashboard)
 
-## 0. Purpose
+RECONCILIATION NOTE (F3 resolved): this is the SINGLE canonical report card. It supersedes and merges
+(a) the dated draft SYSTEMS-REPORT-CARD-2026-09-10.md and (b) the concurrent observability v1.1.0 /
+dashboard "system layer" assessment, which already references THIS filename. The dashboard card
+(fleet.qnfo.org, qnfo-fleet-dashboard) renders the operational score; qnfo-observability v1.1.0 computes
+the integration score into qnfo-audit.integration_state; this document is the one source of truth that
+defines the scales, the objective function, and the evidence. No parallel-truth copies remain (A3).
 
-Codify the fleet's OBJECTIVE FUNCTION for continuous self-improvement, scored against established,
-citable frameworks for machine autonomy and intelligence. The report card's TOP of scale is
-HUMAN-LEVEL autonomy and independent thinking / decision-making. The fleet is scored honestly - it
-is not at the top - and the gap between current score and top of scale IS the objective function
-the fleet drives toward.
+## 0. Purpose and method
 
-## 1. The frameworks (external, citable)
+Measures the QNFO fleet AS A SYSTEM against established frameworks for machine intelligence and
+autonomy, to answer: how close is the fleet to the TOP BAND (human-level autonomy + independent
+thinking + independent decision-making), and what objective function drives it there. Self-assessed from
+live evidence (same-cycle reads), scored honestly — weak axes are reported as weak. Every locked claim
+carries claim / evidence / confidence / status (FRAMEWORK-DOGFOOD-1).
 
-| Framework | What it measures | Top of scale | Source |
-|---|---|---|---|
-| Sheridan-Verplanck Levels of Automation | Human-vs-machine decision authority, 10 levels | LoA 10: computer does everything, human ignored | Sheridan & Verplanck 1978 |
-| Parasuraman-Sheridan-Wickens 4-stage | Which cognitive stages are automated (acquire, analyze, decide, act) | all 4 stages autonomous | IEEE Trans. SMC-A 2000 |
-| Beer Viable System Model (VSM) | Organizational viability via 5 systems S1-S5 | S1-S5 closed; S5 policy internalized | Beer, Brain of the Firm 1972 |
-| OpenAI Levels of AI | Intelligence ladder, 5 levels | L5 Organizations | OpenAI 2024 |
-| DeepMind Levels of AGI | Performance x generality, 6 levels | Virtuoso / ASI | Morris et al. 2024 |
-| ALFUS | Autonomy of unmanned systems (mission complexity, env difficulty, human independence) | full human-independence | NIST / SAE |
-| OODA loop | Decision-cycle completeness (Observe-Orient-Decide-Act) | closed, fast, self-reinitiating | John Boyd |
-| Legg-Hutter Universal Intelligence | Formal intelligence = goal-achievement across environments | unbounded | Legg & Hutter 2007 |
+## 1. Rubrics used (citable, external — union of the two prior assessments)
 
-## 2. The rubric - five dimensions
-
-| Dimension | Framework | 0 (absent) | 5 (human-level) |
-|---|---|---|---|
-| Decision authority | Sheridan-Verplanck LoA | human does everything | computer does everything; informs or ignores |
-| Cognitive automation | Parasuraman-Wickens | no automation | acquire+analyze+decide+act all autonomous |
-| Organizational viability | Beer VSM | S1 only | S1-S5 closed; S5 policy internalized |
-| Intelligence level | OpenAI/DeepMind | L1 chatbot | L5 organization (multi-agent org) |
-| Decision-cycle closure | OODA | no loop | closed loop, near-real-time, self-reinitiating |
-
-Each dimension is a ladder; the composite places the fleet on a single autonomy-intelligence
-spectrum. The rubric is deliberately qualitative: a false-precision composite number would violate
-A8 (honesty).
-
-## 3. Current score (honest, 2026-09-10)
-
-- Decision authority - LoA 8. Routine operations (crons, radars, syncs, self-heal filing, deploys)
-  execute and inform; novel / high-blast-radius actions are gated by A6 (no self-redeploy) and A7
-  (blast radius). Not LoA 10.
-- Cognitive automation - 3.5/5. Observe, Orient, Act are autonomous; Decide is partially gated
-  (human policy + A6/A7 approvals).
-- Viability (VSM) - 3/5. S1 (78 workers) + S2 (fleet-scheduler, queues, handoffs) + S3
-  (census/audit/self-heal/calibration) present. S4 (intelligence/future) partial (radars + idea
-  intake exist but are not a closed strategic loop). S5 (policy/identity) EXTERNAL (human
-  directives + immutable gates).
-- Intelligence - L3 Agents. Multi-agent, tool-using, self-correcting, server-side. Approaching L4
-  (Innovators) via the autonomous research pipeline (idea -> triage -> exec -> publish). Not L4 yet:
-  novelty judgment and independent hypothesis generation are not autonomous.
-- Decision cycle - 4/5. Closed, 15-minute scheduler cadence, receipts in the run ledger; not
-  real-time and not fully self-reinitiating across every loop.
-
-COMPOSITE: "Autonomous operations with human policy" (LoA 8 / AGI L3 / VSM S1-S3+S5 / OODA closed).
-
-## 4. The objective function (drives continuous improvement)
-
-Maximize autonomous goal-achievement across the fleet's task environment (Legg-Hutter), measured by:
-
-  (a) Watchmaker Index -> 0   (share of recurring operations requiring a human)
-  (b) mean-time-to-human-intervention -> +inf
-  (c) self-heal success rate -> 1
-  (d) drift divergence -> 0   (ghost + unregistered + unversioned; the chaos/Lyapunov signal)
-
-Subject to the values that bound autonomy: A3 single source of truth, A6 separation of powers,
-A7 blast-radius limits, A8 honesty (no fabrication), A9 cost ceilings, A10 idempotence.
-
-Adversarial note: "human-level autonomy" is NOT "unbounded autonomy". A human organization is itself
-bounded (law, board, ethics). The correct TOP is autonomy with INTERNALIZED values - S5 policy moves
-from EXTERNAL (human directives) to INTERNAL (the system sets and enforces its own invariants). That
-is the L3 -> L5 transition: the fleet internalizes the gates it currently receives as directives.
-
-## 5. The gap -> next level (concrete, ranked)
-
-1. Normalize service_registry.version to semver - 67 of 80 rows are unversioned or non-semver
-   ("fabric-...", "1.8", "1.2-cors-fixed", null). Highest-leverage drift fix: it un-blinds drift
-   management to 84% of the fleet at once (chaos damping, negative Lyapunov).
-2. Close S4 - make the idea/radar/scan loop STRATEGIC (feed the objective function), not just
-   operational. This is the L3 -> L4 (Innovators) step.
-3. Internalize S5 - migrate gates from external directives to self-enforced invariants with
-   self-audit receipts, so high-blast-radius actions move LoA 5-6 -> 8-9 without losing A6/A7.
-4. Wire the static binding matrix into the dashboard so edges reflect ACTUAL bindings, not just
-   declared deps (the 42 islands are currently a declared-wiring lower bound).
-5. Drive drift divergence to zero and hold it there (the chaotic-regime exit criterion).
-
-## 6. Systems + chaos theory lessons - integrated fleet-wide
-
-| Lesson (theory) | Operationalized in the fleet | Live dashboard metric |
+| Framework | Measures | Used for |
 |---|---|---|
-| Emergence: integration edges are first-class | service_registry deps graph; AF-1 Worker Contract | edges, density, islands, hubs |
-| Closed loops with receipts (cybernetics) | 8 self-* loops; run ledger fleet_runs | self-heal count, deploys, run ledger |
-| Single source of truth (A3) | registry-as-truth; ghost/unregistered reconciliation | ghost, unregistered |
-| Interface/contract drift | VERSION + /health + binding names | unversioned count |
-| Sensitive dependence (chaos) | stale-mirror regression class (canonical: qnfo-ops 1.9.8 landmine) | deployed-vs-repo drift |
-| Attractor distance | Watchmaker Index = distance to healthy attractor | human-open count |
-| Lyapunov drift amplification | unversioned/ghost = amplifying drift | drift divergence |
-| Self-organized criticality | queue depth + consolidation tiers | backlog/pending counts |
-| Edge of chaos | adaptive (registry-driven) but bounded (A6/A7/A9) | LoA level + kill switches |
-| Fractal self-similarity | same anti-pattern at every layer | kaizen anti-pattern ledger |
+| Sheridan-Verplanck Levels of Automation (LoA 0-10) | decision authority | decision authority (live card) |
+| Beer Viable System Model (VSM S1-S5) | organizational viability | organizational viability (live card) |
+| OODA loop (Boyd) | decision-cycle closure | decision cycle (live card) |
+| OpenAI 5 levels / DeepMind Levels of AGI | general-intelligence ceiling | intelligence axis |
+| SAE J3016 L0-L5 (adapted) | control-loop automation | autonomy axis |
+| IBM MAPE-K (Monitor-Analyze-Plan-Execute over Knowledge) | self-adaptive loop closure | loop closure |
+| IBM self-* properties | autonomic capabilities | self-healing |
+| NIST ALFUS | mission/context complexity | autonomy + decision |
+| human-in / on / out-of-the-loop taxonomy | where the human sits | decision authority |
+| METR time-horizon | duration of autonomous operation | horizon |
+
+TOP BAND (operationalized): LoA 10 (computer decides everything, acts autonomously) · AGI L5
+Organization · VSM S1-S5 internalized · SAE L5 human-out-of-the-loop (policy-setting only) · METR
+weeks-scale self-directed horizon. The fleet is MEASURED against this band, not awarded it.
+
+## 2. Overall grade — honest, NOT the top band
+
+Level: SAE L3/L4 conditional-to-high autonomy; Sheridan-Verplanck LoA 5-8 (5 when human-gated decisions
+are pending, 8 when human-gated ops = 0); OpenAI L3 Agents; VSM S1-S3 present / S4 partial / S5 external.
+
+Composite: B-. Strong on verification & safety (A) and closed decision loop (OODA). Moderate on
+self-healing + loop closure. Weak on drift control (D+), integration (D+), and the objective function is
+only now being wired to a computed score (was C-, improving). The top band (LoA 10 / AGI L5 / VSM S5
+internalized / human-out-of-the-loop) is the target, not the current state.
+
+## 3. Live operational card (what fleet.qnfo.org renders today)
+
+| Dimension | Framework | Level | Top of scale |
+|---|---|---|---|
+| Decision authority | Sheridan-Verplanck LoA | LoA 5 or 8 (autonomous ops; novel/high-blast-radius still gated A6/A7) | LoA 10 |
+| Intelligence | OpenAI/DeepMind levels | L3 Agents | L5 Organization |
+| Organizational viability | Beer VSM | S1-S3 present, S4 partial, S5 external | S1-S5 closed, S5 internalized |
+| Decision cycle | OODA | closed loop, 15-min cadence | closed, real-time |
+
+Supporting chips (live): human-gated ops = 0 (or N open); self-heal actions; open agent issues; drift
+divergence = ghost + unregistered + unversioned.
+
+## 4. Detailed analysis (10 + 3 dimensions)
+
+For each: level, evidence, claim / evidence / confidence / status.
+
+### A. Autonomy — SAE L3/L4 (conditional-to-high)
+Claim: recurring execution fully automated (L4); novel/high-blast-radius decisions self-verified with
+human-on-exception (L3). Evidence: 52 scheduled workers on cloud cron; guard suite exit 0 (2026-09-10);
+USER-FREE-RESOLUTION-1; v_waiting_on_human=0. Counter-evidence (not L5): outreach ACTIVATION_AT
+2026-09-15 dated gate; container-cluster retirement blocked on evaluation rows 92/96/97/99. High confidence.
+
+### B. Closed-loop completeness (MAPE-K) — ~5/8 loops
+Claim: of the AF-1 eight self-loops (census/heal/improve/audit/govern/publish/promote/optimize), ~5 are
+closed with receipts; 3 open/partial (improve = kaizen disposition gap; govern = register human rows;
+optimize = calibrator receipts). Evidence: fleet-manifest-sweep, qnfo-error-selfheal + fleet-deploy,
+guard suite, paper-reviser + research-exec drain. Medium confidence (receipt-count inferred).
+
+### C. Self-healing — B+/A-
+Claim: deterministic failures self-correct without a human. Evidence: 5-guard suite; qnfo-error-selfheal
+(deduped agent_issues, re-arms fixed errata classes); deploy-verify-version; this session's in-session
+fix of the stale-repo hybrid landmine (qnfo-ops v2.9.3). Limit: cannot heal ~65 unversioned workers (no
+contract to heal against). High confidence.
+
+### D. Self-improvement — C+
+Claim: closed improvement loop (idea intake -> triage -> exec -> publish -> revise) exists; the
+meta-loop (improving the improver) is partial. Evidence: multi-source idea intake; paper-reviser
+auto-revision (>=2 versions); kaizen weekly report. Gap: kaizen candidates can sit proposed past due.
+
+### E. Independent decision-making — C+ (horizon hours-to-days)
+Claim: operational decisions autonomous; strategic/reversible decisions dated-gated or human-anchored.
+Evidence: OUTREACH-ENGINE-LIVE-1 (8/day cap, per-domain 3/day, warm-up to 09-15); autonomous disposition.
+METR horizon: hours-to-days, not weeks.
+
+### E2. Independent thinking (sub-metrics) — C (the explicit gap)
+Claim: independent EXECUTION is high; independent THINKING (self-directed hypothesis generation,
+self-initiated exploration beyond the current task, long-horizon self-directed projects) is low.
+Evidence: no loop currently generates NEW research questions or self-initiates projects beyond the
+radar/idea intake triggers; the idea intake is external-fuel (radar/edge-form/auto-miner), not the
+fleet asking its own novel questions. This is the axis most distant from the top band. Medium confidence.
+
+### F. Self-model / situational awareness — C
+Claim: registry-as-truth self-model exists but is incomplete. Evidence: service_registry 80 vs 79 live
+(1 ghost qnfo-wrangler-test); ~65/80 unversioned; FLEET-MANIFEST stale (65 vs 79). Multiple ledgers
+disagree (A3). High confidence (direct D1 reads).
+
+### G. Verification & safety — A
+Claim: verify-before-trust + blast radius + kill switches + cost ceilings + adversarial checks are
+best-in-class. Evidence: 5-guard suite exit 0; axioms A5/A7/A9; SERVER-SIDE-EXEC-100-1 (no client code
+execution); AI cost $9.596/30d vs $90 cap (live qnfo-ops /cost, 2026-09-10). High confidence.
+
+### G2. Security — A (dedicated axis)
+Claim: a strong security posture across the surface. Evidence: bearer auth (OPS_ROUTER_AUTH_KEY, SHA-256
+compare); secrets referenced by name, never echoed; 100% server-side execution (no client code); blast
+radius + kill switches; TOKEN-DISCOVERY redundancy; MCP auto-approve file as source of truth. High
+confidence. (Folded into G in the prior draft; split here for completeness.)
+
+### H. Drift control (Lyapunov / attractor distance) — D+
+Claim: drift is the weakest signal; it is under-damped (positive-Lyapunov on version discipline).
+Evidence: ~65/80 unversioned; 1 ghost; mirror + repo-vs-deploy drift found/fixed this session. High.
+
+### I. Integration (graph + contract) — D+
+Claim: sparse near-star graph; most workers are un-integrated leaves; declared wiring incomplete.
+Evidence (live /api/integration): 80 registered / 49 edges / density 0.0078 / 42 islands / 16 sinks.
+High.
+
+### J. Availability / reliability — B (dedicated axis, added for completeness)
+Claim: the fleet is up and low-error, but availability is sampled, not continuously SLA-measured.
+Evidence: 14,622 req / 12 err in 24h (~0.08% error rate, live /api/state); 81 probes up; 9 D1 bound.
+Caveat: no per-worker uptime SLO ledger yet — this axis is the least instrumented of the strong ones.
+Medium confidence.
+
+### K. Objective function — C+ (was C-, improving)
+Claim: the objective function is now WIRED, not just proposed. Evidence: qnfo-observability v1.1.0 writes
+a composite integration score to qnfo-audit.integration_state; the dashboard renders the Watchmaker
+objective (human -> 0, drift -> 0, self-heal -> 1). Gap: the full 6-term F (section 5) is specified here
+but not yet a single computed scalar feeding every loop. Medium confidence.
+
+## 5. Objective function (canonical + expansion)
+
+CANONICAL (operational, what AF-1 defines and the dashboard renders) — the Watchmaker metric:
+  human-gated ops -> 0 ; drift divergence -> 0 ; self-heal -> active (>=1, no silent failures).
+A cycle is "good" iff it moves the Watchmaker triad toward (0, 0, active).
+
+EXPANSION (full 6-term scalar, drives continuous improvement):
+  F = w1*loop_closure_rate - w2*drift_count - w3*human_interventions - w4*cost_overrun - w5*integration_gap + w6*throughput
+  loop_closure_rate = closed/8 loops (B); drift_count = unversioned+ghost+mirror-drift (H);
+  human_interventions = v_waiting_on_human + dated-gated migrations (E); cost_overrun = max(0, spend-$90/30d) (G);
+  integration_gap = islands + unregistered + declared-vs-actual mismatch (I); throughput = publications+deploys+ideas (D).
+Each loop reports its contribution with a receipt; the kaizen loop reviews F weekly and takes the
+next-highest-marginal-improvement action (gradient ascent). STATUS: canonical Watchmaker is live; the
+6-term F is specified, weights uncalibrated, not yet a single ledger scalar — top next action.
+
+## 6. Roadmap to the top band (LoA 10 / AGI L5 / VSM S5 internalized)
+
+1. Normalize service_registry.version to semver (closes ~65 blind spots) — highest leverage (H, B, F).
+2. Wire the full 6-term F as a single computed ledger scalar (extend integration_state.score) + dashboard
+   card (K).
+3. Wire the static binding matrix into the dashboard so declared-vs-actual integration drift is computable (I).
+4. Close the 3 open loops (kaizen disposition, govern register, calibrator receipts) (B).
+5. Convert dated-gated items (outreach ACTIVATION_AT, retirement rows) to autonomous triggers with kill
+   switches (A -> L4/L5).
+6. Add an independent-thinking loop: a "question-asker" that proposes NEW research questions / self-directed
+   projects from the corpus (E2 — the furthest axis from the top band).
 
 ## 7. Claim sheet (FRAMEWORK-DOGFOOD-1)
 
 | Claim | Evidence | Confidence | Status |
 |---|---|---|---|
-| Frameworks listed are real, citable measures of machine autonomy/intelligence | published sources (Sheridan & Verplanck 1978; Beer 1972; OpenAI 2024; Morris et al. 2024; Legg & Hutter 2007) | high | verified |
-| Fleet composite = LoA 8 / L3 Agents / VSM S1-S3+S5 | registry + live dashboard data (78 workers, self-heal, 0 human-open, 67 unversioned) | medium-high | measured 2026-09-10 |
-| 67/80 registry rows are unversioned/non-semver | /api/integration live | high | measured 2026-09-10 |
-| The fleet is NOT human-level | no independent novel-hypothesis loop; S4 partial; S5 external | high | assessed 2026-09-10 |
+| Overall B- ; SAE L3/L4 ; LoA 5-8 ; AGI L3 ; VSM S1-S3 | dashboard card + detailed analysis, live reads | medium (self-measured) | current |
+| 5-guard suite exit 0 | same-turn runs 2026-09-10 | high | current |
+| AI cost $9.596/30d vs $90 cap | live qnfo-ops /cost 2026-09-10 | high | current (supersedes $18.08 memory) |
+| 80 reg / 79 live / 1 ghost / 0 unregistered | D1 + live list | high | current |
+| ~65 unversioned (drifting 65-67) | service_registry.version not semver | high | current |
+| density 0.0078 / 42 islands / 16 sinks | /api/integration live | high | current |
+| 14,622 req / 12 err / 24h (~0.08%) | /api/state live | high | current |
+| observability v1.1.0 writes integration_state score | qnfo-observability/worker.js | high | current |
+| dashboard card renders + references THIS doc | fleet.qnfo.org + worker.js | high | current (after this merge) |
+| ~5/8 loops closed | crons + logs, inferred | medium | current |
+| 6-term F not yet a single scalar | absence-of-evidence | medium | current gap |
+
+## 8. Adversarial / failure modes
+
+- Self-measurement bias: the system grades itself (A6); a third-party audit could differ. Mitigated by
+  same-turn reads + confidence labels, not eliminated.
+- Rubric mismatch: SAE (vehicles), LoA (human-factors), VSM (organizations), AGI levels (general AI) were
+  designed for other domains; mapping them to a Cloudflare fleet is analogy, not a validated instrument.
+- "~5/8 loops closed" and "0.08% error rate" are inferred/sampled, not exhaustively measured; there is no
+  per-worker uptime SLO ledger (J caveat).
+- Evidence is point-in-time; this card drifts unless F is computed continuously (K).
+- The 6-term F weights (w1..w6) are uncalibrated; the Watchmaker triad is the only operational objective.
+- This document is still self-authored; it has not been independently audited by a human.
