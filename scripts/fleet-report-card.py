@@ -64,7 +64,12 @@ def main():
     loop_health = 0.4 * probe_ratio + 0.4 * chain_ratio + 0.2 * (1.0 if not no_run else 0.5)
     autonomy = min(0.5 * user_freedom + 0.5 * loop_health, 0.70)
 
-    thinking = 0.5 * 1.0 + 0.5 * 0.0
+    try:
+        _bm = json.load(open(os.path.join(HERE, "..", "benchmarks", "arc-agi-10task-result.json"), encoding="utf-8"))
+        _bench = clamp(float(_bm.get("ratio", 0.0)))
+    except Exception:
+        _bench = 0.0
+    thinking = 0.5 * 1.0 + 0.5 * _bench
 
     decision = 0.25 * 0.95 + 0.25 * 0.70 + 0.25 * 0.40 + 0.25 * 0.90
 
@@ -116,7 +121,7 @@ def main():
 
     dims = [
         ("autonomy", "Sheridan-Verplank LOA + autonomy ladder (cap L2=0.70)", "Watchmaker Index: user-waiting rows + loop health", "L3 promotion raises cap to 0.85; L4 decide-loop drops WI-agent"),
-        ("thinking", "ARC-AGI / GAIA / disconfirmation gates", "adversarial gates live (11/11); standardized benches unmeasured (0)", "run 10-task ARC-AGI probe + GAIA mini via fleet-executor"),
+        ("thinking", "ARC-AGI / GAIA / disconfirmation gates", "adversarial gates live (11/11); ARC-AGI 10-task sample measured 2/10 (0.20)", "run 10-task ARC-AGI probe + GAIA mini via fleet-executor"),
         ("decision", "Parasuraman 4-stage (acquire/analyze/select/act)", "0.95/0.70/0.40/0.90 - selection is LLM/agent with human-set objectives", "objective-setting autonomy only behind ladder L3"),
         ("self_improv", "RSI closure: candidate -> change -> verify", "kaizen closure + guards exit-0 + autonomous mutation 0.15 (canary only)", "autonomous code mutation with verified selection"),
         ("reliability", "probe ratio / 24h errors / warning count", "probes green, err24 decaying, warnings low", "keep err24 == 0 persistently"),
