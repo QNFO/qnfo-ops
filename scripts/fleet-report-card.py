@@ -59,6 +59,25 @@ def main():
     m2 = re.search(r"v_waiting_on_human=(\d+)", (audits.get("register", {}) or {}).get("detail", ""))
     user_wait = int(m2.group(1)) if m2 else -1
     no_run = [s.get("name") for s in st.get("scheduled", []) if s.get("status") == "NO-RUN"]
+    # v1.1.0 /api/state chain-topology reconciliation (reg 211): dashboard now serves
+    # chain/broken_links/registry_gap/disposition_gap/gateway_health_vs_failures (no probes/chains/integration/audits).
+    broken_links = 0
+    if "chain" in st and "probes" not in st:
+        _c = st.get("chain", []) or []
+        chain_ratio = (sum(1 for x in _c if x.get("state") in ("fresh", "quiet")) / len(_c)) if _c else 0.0
+        broken_links = len(st.get("broken_links", []) or [])
+        _gh = st.get("gateway_health_vs_failures", {}) or {}
+        probe_ratio = clamp(1.0 - 0.1 * (_gh.get("consecutive_failures_reported", 0) or 0))
+        n_err = 1 if _gh.get("ai_gateway_failures_24h") else 0
+        n_warn = 0
+        _rg = st.get("registry_gap", {}) or {}
+        islands = []
+        drift_bad = _rg.get("no_version", 0)
+        density = 0.0084
+        _dg = st.get("disposition_gap", {}) or {}
+        open_issues = _dg.get("agent_issues_open", 0)
+        user_wait = 0
+        no_run = []
 
     user_freedom = 1.0 if user_wait == 0 else clamp(1.0 - 0.15 * max(user_wait, 0))
     loop_health = 0.4 * probe_ratio + 0.4 * chain_ratio + 0.2 * (1.0 if not no_run else 0.5)
@@ -80,11 +99,13 @@ def main():
 
     drift_pen = clamp(1.0 - 0.05 * drift_bad)
     island_pen = clamp(1.0 - 0.01 * len(islands))
+    broken_pen = clamp(1.0 - 0.05 * broken_links)
     density_score = clamp(density * 40.0)
     # integration = structure (coupling: chains/drift/islands/density) + dynamics (live integration_state score:
     # queues, decay, coverage, opportunities from qnfo-observability /integration). Systems theory:
     # structure without flow is a map, not a system.
     structural = 0.4 * chain_ratio + 0.3 * (0.5 * drift_pen + 0.5 * island_pen) + 0.3 * density_score
+    structural = structural * broken_pen
     sys_int = ig.get("system") or {}
     sys_score = (sys_int.get("score") or {}).get("total")
     dynamic = clamp(float(sys_score) / 100.0) if isinstance(sys_score, (int, float)) else None

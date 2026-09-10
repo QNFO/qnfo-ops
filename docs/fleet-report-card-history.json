@@ -206,5 +206,57 @@
    "density": 0.0084,
    "no_run": []
   }
+ },
+ {
+  "ts": "2026-09-10T15:37:13Z",
+  "sai": 59.2,
+  "grade": "D",
+  "scores": {
+   "autonomy": 0.6,
+   "thinking": 0.6,
+   "decision": 0.737,
+   "self_improv": 0.575,
+   "reliability": 0.5,
+   "integration": 0.3,
+   "governance": 0.9
+  },
+  "signals": {
+   "probe_ratio": 0.0,
+   "chain_ratio": 0.0,
+   "issues_err": 0,
+   "issues_warn": 0,
+   "open_agent_issues": -1,
+   "user_wait": -1,
+   "islands": 0,
+   "drift_bad": 0,
+   "density": 0.0,
+   "no_run": []
+  }
+ },
+ {
+  "ts": "2026-09-10T15:40:46Z",
+  "sai": 68.5,
+  "grade": "C",
+  "scores": {
+   "autonomy": 0.7,
+   "thinking": 0.6,
+   "decision": 0.737,
+   "self_improv": 0.53,
+   "reliability": 0.925,
+   "integration": 0.577,
+   "governance": 0.9
+  },
+  "signals": {
+   "probe_ratio": 1.0,
+   "chain_ratio": 0.714,
+   "issues_err": 1,
+   "issues_warn": 0,
+   "open_agent_issues": 3,
+   "user_wait": 0,
+   "islands": 0,
+   "drift_bad": 6,
+   "density": 0.0084,
+   "no_run": []
+  }
  }
 ]
