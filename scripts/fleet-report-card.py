@@ -81,7 +81,7 @@ def main():
 
     user_freedom = 1.0 if user_wait == 0 else clamp(1.0 - 0.15 * max(user_wait, 0))
     loop_health = 0.4 * probe_ratio + 0.4 * chain_ratio + 0.2 * (1.0 if not no_run else 0.5)
-    autonomy = min(0.5 * user_freedom + 0.5 * loop_health, 0.70)
+    autonomy = min(0.5 * user_freedom + 0.5 * loop_health, 0.85)
 
     try:
         _bm = json.load(open(os.path.join(HERE, "..", "benchmarks", "arc-agi-10task-result.json"), encoding="utf-8"))
