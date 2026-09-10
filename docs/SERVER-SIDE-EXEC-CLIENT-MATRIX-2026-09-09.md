@@ -19,7 +19,7 @@ Every code/tool operation executes on Cloudflare inside qnfo-ops. Clients are du
 
 | Field | Value |
 |---|---|
-| service / kind | qnfo-ops / worker, version 2.7.0 |
+| service / kind | qnfo-ops / worker, version 2.7.0 (snapshot 2026-09-09; deployed 2.9.1 on 2026-09-10 - see section 9) |
 | base_url | https://qnfo-ops.q08.workers.dev |
 | chat route | POST /v1/chat/completions (OpenAI-compatible); /v1/responses supported; GET /v1/models |
 | models | ops-exec (QNFO-OPS/ops-exec, default) - deepseek-v4-flash (explicit relay only) |
@@ -29,7 +29,7 @@ Every code/tool operation executes on Cloudflare inside qnfo-ops. Clients are du
 
 ## 3. System-prompt gate paragraph (paste-ready; v4.21 candidate)
 
-MANDATORY (2026-09-09, system-prompt v4.21 / kaizen v2.142 / SERVER-SIDE-EXEC-100-1): preserve the four-client 100%-server-side-execution gate (operator directive 2026-09-09: 100% SERVER-SIDE CODE EXECUTION ONLY across DeepChat Windows, ChatBox Windows, ChatBox Android, SannaBot Android - no local tool code, no local tool calls, no finish_reason=tool_calls to any client) - SERVER-SIDE-EXEC-100-1 (qnfo-ops v2.7.0 endpoint https://qnfo-ops.q08.workers.dev POST /v1/chat/completions, bearer OPS_ROUTER_AUTH_KEY, model QNFO-OPS/ops-exec is the SOLE executor of every code/tool operation - run_code / ops_d1_query / vectorize_query / r2_* / kv_* / workspace_* / email_* / fleet_* / web_* / github_* / issue_* / telemetry_* all run on Cloudflare; the four clients are OpenAI-compatible REST terminals and MUST never execute code locally, never invoke local tools from an ops-exec chat, and never receive a client-executable tool_calls payload; SUPERSEDES the v4.20 hybrid carve-out for source=="deepchat" - the pure server-side loop is now universal and detectSource remains for audit labeling only, strategy never yields hybrid client-handoff for any source; DeepChat / ChatBox / Sanna system prompts embed this block so the client itself forbids local execution; verify per-client probes - from each of the four clients, "run run_code: 12345*6789" MUST return 83810205 with zero client-side execution, and "fleet status" MUST return live /health data - plus ops_ai_log rows carry the correct source per client + all four model keys QNFO-OPS/ops-exec + 7-store prompt parity + prompt-store-verify.py exit 0 + scheduler-guard.py exit 0 + model_guard.py exit 0 after every dual-write (PROMPT-PARITY-1).
+MANDATORY (2026-09-09, system-prompt v4.21 / kaizen v2.142 / SERVER-SIDE-EXEC-100-1): preserve the four-client 100%-server-side-execution gate (operator directive 2026-09-09: 100% SERVER-SIDE CODE EXECUTION ONLY across DeepChat Windows, ChatBox Windows, ChatBox Android, SannaBot Android - no local tool code, no local tool calls, no finish_reason=tool_calls to any client) - SERVER-SIDE-EXEC-100-1 (qnfo-ops v2.7.0 endpoint https://qnfo-ops.q08.workers.dev POST /v1/chat/completions, bearer OPS_ROUTER_AUTH_KEY, model QNFO-OPS/ops-exec is the SOLE executor of every code/tool operation - run_code / ops_d1_query / vectorize_query / r2_* / kv_* / workspace_* / email_* / fleet_* / web_* / github_* / issue_* / telemetry_* all run on Cloudflare; the four clients are OpenAI-compatible REST terminals and MUST never execute code locally, never invoke local tools from an ops-exec chat, and never receive a client-executable tool_calls payload; SUPERSEDES the v4.20 hybrid carve-out for source=="deepchat" - the pure server-side loop is now universal and detectSource remains for audit labeling only, strategy never yields hybrid client-handoff for any source; [STATUS 2026-09-10: the deepchat hybrid-removal is NOT YET DEPLOYED - the deployed v2.9.1 worker still runs hybrid for UA class deepchat, while mobile/chatbox/other are already pure. See section 9.] DeepChat / ChatBox / Sanna system prompts embed this block so the client itself forbids local execution; verify per-client probes - from each of the four clients, "run run_code: 12345*6789" MUST return 83810205 with zero client-side execution, and "fleet status" MUST return live /health data - plus ops_ai_log rows carry the correct source per client + all four model keys QNFO-OPS/ops-exec + 7-store prompt parity + prompt-store-verify.py exit 0 + scheduler-guard.py exit 0 + model_guard.py exit 0 after every dual-write (PROMPT-PARITY-1).
 
 ## 4. Client configuration matrix
 
@@ -88,5 +88,13 @@ SERVER-SIDE EXECUTION CONTRACT (binding):
 
 - DeepChat Windows: provider QNFO-OPS, base https://qnfo-ops.q08.workers.dev, path /v1, model QNFO-OPS/ops-exec, API key = OPS_ROUTER_AUTH_KEY value (reference by name only).
 - ChatBox Windows: provider qnfo-ops, host https://qnfo-ops.q08.workers.dev, API path /v1/chat/completions, model ops-exec; plugins/artifacts off for ops chats.
-- ChatBox Android: same host/path/model per QNFO-OPS-ChatBox-Android-Setup.md (2026-09-03, D:\Obsidian\notes\v1\2026\09\03\).
+- ChatBox Android: same host/path/model per QNFO-OPS-ChatBox-Android-Setup.md (2026-09-03, notes/v1/2026/09/03/ in the Obsidian vault / R2 bucket obsidian-vault (D: drive retired)\).
 - SannaBot Android: custom endpoint same host/path/model; tools/actions/skills/sub-agents OFF for the ops profile (identity verified - on-device action agent; see section 7).
+
+## 9. Deployment status (2026-09-10 - verified against the DEPLOYED bundle)
+
+- Deployed worker: qnfo-ops v2.9.1 (live /health). Repo copy is stale at v1.9.8 and still carries the OLD hybrid predicate (source != chatbox) - a REGRESSION LANDMINE: deploy the repo as-is and mobile/other clients re-enter hybrid. Reconcile the repo to the deployed bundle before any redeploy (WORKER-EDIT-BASE-VERIFY-1 / DEPLOY-LAST-WINS-RECONCILE-1).
+- Deployed hybrid predicate: const hybrid = !!clientTools && source === deepchat - ONLY UA class deepchat can receive a client tool_calls payload.
+- detectSource (deployed): deepchat OR ai-sdk -> deepchat; chatbox|dart|flutter|okhttp|dalvik|android|retrofit|mobile -> mobile; else other.
+- Consequence: mobile (ChatBox Android, SannaBot) and chatbox/other clients get the PURE server-side loop and never a client tool_calls - the mobile-ops contract holds.
+- PENDING (gated): full removal of the deepchat hybrid carve-out (making SERVER-SIDE-EXEC-100-1 universal) would break the DeepChat host agent native toolchain unless the DeepChat main agent is re-pointed off ops-exec (or to the relay) in the same cycle. Requires an explicit decision plus a real-client probe; documented, not executed.
