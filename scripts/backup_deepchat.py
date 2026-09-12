@@ -108,13 +108,12 @@ def main():
     try:
         src_conn = sqlite3.connect(db_src, timeout=30)
         dst_conn = sqlite3.connect(db_tmp)
-        src_conn.backup(dst_conn)
+        src_conn.backup(dst_conn, pages=512)  # BACKUP-MEM-1 (2026-09-09): incremental page copy (bounded memory); default one-shot copy of the ~1.6GB live agent.db raised MemoryError
         dst_conn.close(); src_conn.close()
         key = PREFIX + STAMP + '/agent.db'
-        with open(db_tmp, 'rb') as f:
-            data = f.read()
-        size_mb = round(len(data)/1048576, 1)
-        if len(data) > REST_SINGLE_PUT_LIMIT:
+        size_bytes = os.path.getsize(db_tmp)  # BACKUP-MEM-1: never f.read() a >1GB snapshot just to size it (MemoryError)
+        size_mb = round(size_bytes/1048576, 1)
+        if size_bytes > REST_SINGLE_PUT_LIMIT:
             import subprocess
             rc = subprocess.run([sys.executable, os.path.join(HOMEDEEP, 'scripts', 'backup_agentdb_chunked.py')]).returncode
             if rc == 0:
@@ -124,6 +123,8 @@ def main():
                 db_skip_reason = 'agent.db chunked backup failed (backup_agentdb_chunked.py rc=%d)' % rc
         else:
             try:
+                with open(db_tmp, 'rb') as f:  # BACKUP-MEM-1: read into memory only for small (<limit) snapshots
+                    data = f.read()
                 if upload(key, data):
                     uploaded.append('agent.db (' + str(size_mb) + ' MB)')
                 else:
@@ -139,6 +140,39 @@ def main():
         errors.append('agent.db: ' + type(e).__name__ + ' ' + str(e)[:150])
     if db_skip_reason:
         skipped.append(db_skip_reason)
+    # --- VERIFICATION GATE (wired 2026-09-12, PROMPT-PARITY-1) -----------------
+    # The governance record claimed "prompt-store-verify + dr_validate_schema run inside
+    # every backup" — but this tool invoked neither (only backup_agentdb_chunked). Wiring
+    # them here makes the claim true. PSV + dr_validate are HARD (fail the backup);
+    # prompt-parity-guard is ADVISORY (loud, non-fatal) until it has a track record.
+    import subprocess as _sp
+    HARD_GUARDS = (
+        (os.path.join(HOMEDEEP, 'scripts', 'prompt-store-verify.py'), True, 300, 'PSV'),
+        (os.path.join(HOMEDEEP, 'scripts', 'prompt-parity-guard.py'), False, 300, 'PARITY-GUARD'),
+    )
+    for gp, hard, tmo, tag in HARD_GUARDS:
+        if not os.path.exists(gp):
+            skipped.append(tag + ' absent: ' + os.path.basename(gp))
+            continue
+        try:
+            pr = _sp.run([sys.executable, gp], capture_output=True, text=True, timeout=tmo)
+            lines = (pr.stdout or '').strip().splitlines()
+            tail = lines[-1][:190] if lines else '(no output)'
+            if pr.returncode != 0:
+                msg = tag + ' rc=%d: %s' % (pr.returncode, tail)
+                if hard:
+                    errors.append(msg)
+                    print('[BACKUP-GUARD-FAIL] ' + msg)
+                else:
+                    print('[BACKUP-GUARD-WARN] ' + msg)
+            else:
+                print('[BACKUP-GUARD-PASS] ' + tag + ' -> ' + tail)
+        except Exception as e:
+            m2 = tag + ' launch failed: ' + type(e).__name__ + ' ' + str(e)[:120]
+            if hard:
+                errors.append(m2)
+            print('[BACKUP-GUARD-WARN] ' + m2)
+
     if errors:
         for e in errors:
             print('[BACKUP-ERROR] ' + e)
