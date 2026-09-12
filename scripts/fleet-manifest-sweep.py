@@ -96,6 +96,13 @@ def deployed_version(name):
         return m2.group(1) if m2 else 'UNVERSIONED'
     return None
 
+
+def is_strict_semver(ver):
+    """HUB-VERSIONING-1: strict semver = X.Y.Z (digits only). Flags absorbed-N-*/merged-date/
+    slash-form/v-prefix/-suffix stamps as non-semver (drift scanner must flag them)."""
+    return bool(re.fullmatch(r'\d+\.\d+\.\d+', ver))
+
+
 def main():
     if not TOKEN:
         print('CLOUDFLARE_API_TOKEN missing'); sys.exit(2)
@@ -119,6 +126,7 @@ def main():
          'Every worker MUST carry: (1) VERSION reachable via /health; (2) header with purpose/canonical source;',
          '(3) canonical repo deployed-current.worker.js. Status: OK = all; PARTIAL = versioned not repo-synced;',
          'GAP = missing one or more. AUTH-GATED = /health behind auth (monitor must send bearer).',
+         'VERSION-FORMAT = /health version is not strict semver X.Y.Z (HUB-VERSIONING-1: no v-prefix / -suffix / absorbed-N / merged-date / slash-form).',
          '', '## Fleet (' + str(len(rows)) + ' workers)', '',
          '| Worker | Live version | Modified (UTC) | Canonical repo | Repo version | Self-doc |',
          '|---|---|---|---|---|---|']
@@ -127,7 +135,9 @@ def main():
         d = repo_dir(name); rv = deployed_version(name)
         if ver is None or ver in ('NO-HEALTH', 'ERR', 'None', 'True'):
             ver = 'NO-HEALTH'
-        if not d:
+        if ver not in ('NO-HEALTH', 'AUTH-GATED', 'NO-VERSION', 'ROOT-ONLY') and not is_strict_semver(ver):
+            sd = 'VERSION-FORMAT (non-semver: ' + ver + ')'
+        elif not d:
             sd = 'GAP (no repo dir)'
         elif rv is None:
             sd = 'PARTIAL (no repo deployed-current)'
@@ -143,11 +153,13 @@ def main():
     ok = sum(1 for l in L if '| OK |' in l)
     drift = sum(1 for l in L if '| DRIFT ' in l)
     gap = sum(1 for l in L if ('| GAP ' in l) or ('| PARTIAL ' in l))
+    nonsemver = sum(1 for l in L if '| VERSION-FORMAT ' in l)
     L += ['', '## Summary', '',
           '- Total workers: ' + str(len(rows)),
           '- Self-doc OK: ' + str(ok),
           '- Drift: ' + str(drift),
           '- GAP/PARTIAL: ' + str(gap),
+          '- Non-semver version: ' + str(nonsemver),
           '', '## Self-improvement loop', '',
           '1. Fleet Drift & Self-Improvement Audit cron (weekly): re-runs this sweep, logs drift, repairs via wrangler redeploy.',
           '2. AI Worker Health + Provider Config Guard cron (every 3h): probes qnfo-ai + personal-api chat paths.',
