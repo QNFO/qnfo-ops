@@ -3,6 +3,14 @@
 Status: **PROPOSED (design)** · Version: 1.0 · Date: 2026-09-10 · Owner: QNFO ops
 Canonical: `qnfo-ops/docs/AUTONOMOUS-FLEET-ARCHITECTURE.md`
 
+> **Two-architecture note (2026-09-12):** AF-1 governs fleet *operations* — how the fleet runs,
+> heals, audits, improves, and publishes itself (L0–L7 below). The companion doc
+> `SIGNAL-ORGANISM-ARCHITECTURE.md` governs the *research organism* — how signals become artifacts
+> and re-enter as signals (an 8-layer loop L0–L8). They are orthogonal and complementary: AF-1 is
+> the substrate, the signal-organism is the payload. The research pipeline (AUTONOMOUS-RESEARCH-
+> PIPELINE.md L0–L6) maps onto the signal-organism's L0–L7; its missing L8 (artifact→signal
+> re-entry) is specified there and implemented by `qnfo-signal-loop`.
+
 ## 0. Abstract
 
 The target operating model for a fully server-side, fully AI-driven fleet. The goal is a
