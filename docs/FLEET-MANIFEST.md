@@ -1,6 +1,6 @@
 # QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem
 
-> Auto-generated 2026-09-12 09:07 UTC by fleet-manifest-sweep.py v2.0 (self-contained enumeration + /health probes).
+> Auto-generated 2026-09-12 09:18 UTC by fleet-manifest-sweep.py v2.0 (self-contained enumeration + /health probes).
 > Living inventory; weekly Fleet Drift cron (42b1988c) re-generates this file from live CF state - do NOT hand-edit;
 > deploy history lives in qnfo-audit deployment_history + git log.
 
@@ -26,11 +26,11 @@ VERSION-FORMAT = /health version is not strict semver X.Y.Z (HUB-VERSIONING-1: n
 | obsidian-writer | NO-HEALTH | 2026-09-11 09:01:13 | - | - | GAP (no repo dir) |
 | osf-integrity-check | NO-VERSION | 2026-09-10 08:22:56 | - | - | GAP (no repo dir) |
 | personal-api | v3.5.0-telemetry-normalize | 2026-09-12 06:59:56 | qnfo-workers/personal-api | v3.5.0-telemetry-normalize | VERSION-FORMAT (non-semver: v3.5.0-telemetry-normalize) |
-| personal-companion | v1.0.0 | 2026-09-12 09:03:15 | qnfo-workers/personal-companion | v1.0.0 | VERSION-FORMAT (non-semver: v1.0.0) |
+| personal-companion | 1.0.0 | 2026-09-12 09:08:42 | qnfo-workers/personal-companion | v1.0.0 | OK |
 | qnfo-agent-orchestrator | v1.0.0 | 2026-09-10 08:23:14 | qnfo-workers/agent-orchestrator | 1.0.0 | VERSION-FORMAT (non-semver: v1.0.0) |
 | qnfo-agent-ws | 1.3.9 | 2026-09-11 17:08:26 | qnfo-workers/qnfo-agent-ws | 2025-11-25 | DRIFT repo=2025-11-25 |
 | qnfo-ai | 5.25.1-anomaly-dedup | 2026-09-12 07:10:33 | qnfo-workers/qnfo-ai | 5.25.1-anomaly-dedup | VERSION-FORMAT (non-semver: 5.25.1-anomaly-dedup) |
-| qnfo-ai-calibration | 1.1.4 | 2026-09-11 16:56:28 | qnfo-workers/qnfo-ai-calibration | 1.1.1 | DRIFT repo=1.1.1 |
+| qnfo-ai-calibration | 1.1.5 | 2026-09-12 09:09:46 | qnfo-workers/qnfo-ai-calibration | 1.1.5 | OK |
 | qnfo-ai-search | 1.0.2 | 2026-09-10 07:47:50 | qnfo-workers/qnfo-ai-search | 1.0.2 | OK |
 | qnfo-archive | 1.2.0+cors-fixed | 2026-09-11 09:27:54 | - | - | VERSION-FORMAT (non-semver: 1.2.0+cors-fixed) |
 | qnfo-autopilot | 0.2.0 | 2026-09-11 16:47:44 | - | - | GAP (no repo dir) |
@@ -41,7 +41,7 @@ VERSION-FORMAT = /health version is not strict semver X.Y.Z (HUB-VERSIONING-1: n
 | qnfo-email | 1.8.0 | 2026-09-11 09:34:39 | - | - | GAP (no repo dir) |
 | qnfo-email-orchestrator | 0.3.4-glm53 | 2026-09-11 14:02:11 | qnfo-workers/qnfo-email-orchestrator | 0.3.4 | VERSION-FORMAT (non-semver: 0.3.4-glm53) |
 | qnfo-events | 1.1.0 | 2026-09-10 08:27:30 | qnfo-workers/qnfo-events | 1.1.0 | OK |
-| qnfo-fleet-control | 0.4.11 | 2026-09-12 09:06:16 | - | - | GAP (no repo dir) |
+| qnfo-fleet-control | 0.4.11 | 2026-09-12 09:06:16 | qnfo-workers/qnfo-fleet-control | 0.3.3 | DRIFT repo=0.3.3 |
 | qnfo-fleet-dashboard | 1.1.0 | 2026-09-12 07:01:37 | - | - | GAP (no repo dir) |
 | qnfo-gateway | NO-HEALTH | 2026-09-09 07:47:38 | - | - | GAP (no repo dir) |
 | qnfo-impact | 0.1.0 | 2026-09-10 08:27:52 | - | - | GAP (no repo dir) |
@@ -51,7 +51,7 @@ VERSION-FORMAT = /health version is not strict semver X.Y.Z (HUB-VERSIONING-1: n
 | qnfo-kaizen | 0.3.2-glm53 | 2026-09-08 13:56:25 | qnfo-workers/qnfo-kaizen | 0.3.2-glm53 | VERSION-FORMAT (non-semver: 0.3.2-glm53) |
 | qnfo-lifecycle | 1.6.1-memory-maintain-fixed | 2026-09-10 18:48:28 | qnfo-workers/personal-lifecycle | 1.0.0 | VERSION-FORMAT (non-semver: 1.6.1-memory-maintain-fixed) |
 | qnfo-memory-mcp | 2.0.3 | 2026-09-05 07:15:14 | qnfo-workers/memory-mcp | 2024-11-05 | DRIFT repo=2024-11-05 |
-| qnfo-observability | absorbed3-2026-09-11 | 2026-09-11 16:46:22 | - | - | VERSION-FORMAT (non-semver: absorbed3-2026-09-11) |
+| qnfo-observability | 1.2.0 | 2026-09-12 09:18:06 | - | - | GAP (no repo dir) |
 | qnfo-ops | 2.13.1 | 2026-09-12 07:17:14 | qnfo-workers/qnfo-ops | 2.9.5 | DRIFT repo=2.9.5 |
 | qnfo-outreach | 0.1.0 | 2026-09-10 08:27:56 | qnfo-workers/qnfo-outreach | 0.1.0 | OK |
 | qnfo-paper-explainer | 0.2.0 | 2026-09-11 14:02:26 | - | - | GAP (no repo dir) |
@@ -73,10 +73,10 @@ VERSION-FORMAT = /health version is not strict semver X.Y.Z (HUB-VERSIONING-1: n
 ## Summary
 
 - Total workers: 54
-- Self-doc OK: 12
+- Self-doc OK: 14
 - Drift: 9
 - GAP/PARTIAL: 17
-- Non-semver version: 16
+- Non-semver version: 14
 
 ## Self-improvement loop
 
