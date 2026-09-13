@@ -8,10 +8,15 @@ Every figure is a live tool return from the 2026-09-13 session. Ops-workspace mi
 > withdrawn** — see §3.2. `governance_kernel` is `ACTIVE` with 13 ratified gates and is
 > actively blocking writes. The defect is fragmentation and infrequent exercise, not absence.
 >
-> **CORRECTION 3 (this revision).** D12's weekly-cron finding was published as "a signal, not
-> proof" on one source. It is now **corroborated by three further independent tables** — and
-> the corroboration exposed **D16: the SAI/report-card time series is effectively empty**
+> **CORRECTION 3.** D12's weekly-cron finding was published as "a signal, not proof" on one
+> source. It is now **corroborated by three further independent tables** — and the
+> corroboration exposed **D16: the SAI/report-card time series is effectively empty**
 > (1 row, `sai` and `grade` both NULL).
+>
+> **REVISION 4 (this revision).** Adds **D17 — the async job queue never terminates**: 26 jobs
+> hold a finished answer in `status='continuing'`, frozen ~6 h. Adds §3.5, retracting an
+> operational instruction this session emitted that told a client to poll `GET /v1/jobs/:id`
+> **without** a bearer token; that instruction produced a live `401`.
 
 ## 0. Term caveat
 
@@ -51,7 +56,7 @@ AF-1 is the substrate (operations); the signal-organism is the payload (research
 is not connected to the backlog. Ops reports sourced from `agent_issues` under-state open work
 by ~25×.
 
-### D16 — The SAI / report-card time series is effectively empty (NEW)
+### D16 — The SAI / report-card time series is effectively empty
 
 The fleet's headline health metric has no usable history:
 
@@ -70,6 +75,31 @@ The fleet's headline health metric has no usable history:
 
 Consequence: SAI is a headline ALVE-1 metric with **no queryable trend**, so no metric built on
 it (integration factor, report card, weekly watchtower) can be time-series validated.
+
+### D17 — The async job queue never terminates: 26 finished jobs stuck in `continuing`
+
+`ops_jobs` at 2026-09-13T13:25Z, rows carrying `_chain`:
+
+| status | depth 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| `succeeded` | 14 | 7 | 3 | 1 | 0 | 2 |
+| `continuing` | **13** | **6** | **3** | **2** | **2** | 0 |
+| `failed` | 5 | 0 | 0 | 0 | 0 | 0 |
+| `queued` | 1 | 0 | 0 | 0 | 0 | 0 |
+
+Aggregate over the 26 `continuing` rows: `COUNT(*)` **26**, `SUM(length(response)>0)` **26**,
+`SUM(json_valid(tool_log))` **8**, `SUM(length(tool_log)=3000)` **18**, hours since
+`MAX(updated_at)` = **5.97** (oldest created 06:29:04Z, newest update 07:26:40Z).
+
+**Every one of the 26 already holds a non-empty `response`.** The answer was written; the status
+was never advanced to a terminal value. To any client polling `GET /v1/jobs/:id`, a
+chain-midpoint row whose successor was spawned but which was never marked `succeeded` is
+indistinguishable from a job still working. A poller with a timeout reads them as failures; a
+poller without one hangs. Same failure class as the parent patch doc's D2 (the durable path's
+state does not converge), on the terminal side rather than the envelope side.
+
+Fix (staged in `qnfo-workers/qnfo-ops/patches/`): write `response` and the terminal status in one
+statement, add a `terminal_at` column, and add a reaper for rows with a response and no update.
 
 ### D15 — 209 tables in `qnfo-audit`; parallel ledgers by accretion
 
@@ -234,11 +264,27 @@ derived from `err24>0`, which trains operators to ignore the column.
 4. **D12 evidence grade — UPGRADED then qualified.** Published as "a signal, not proof" on one
    source; now corroborated by `cloud_ops_events`, `report_card_history`, `benchmark_results`.
    Qualified because all records cluster in one 15-minute window on 09-10.
+5. **"Poll `GET /v1/jobs/:id` — no user action needed" — RETRACTED.** This session emitted that
+   instruction to a client. The route is bearer-gated, so a bare GET cannot succeed; the client
+   received `{"error":"Unauthorized - set Bearer OPS_ROUTER_AUTH_KEY"}`. Differential measured
+   the same session: this endpoint (Cloudflare Worker) fetching the same path gets **HTTP 404**
+   (the §3.1 edge artifact), while the non-Worker client reached the router and was rejected by
+   the auth guard. Two consequences: (a) the route is **live**, not dead — this answers the open
+   question left in `qnfo-workers/qnfo-ops/patches/2026-09-13-async-job-addendum-corrections.md`
+   A2 ("polling from a browser/client is untested here"); (b) job results **never required that
+   route** — `ops_jobs.response` is a plain readable column, which is how every result in this
+   session was actually retrieved.
 
 ## 4. Honest limits
 
 - Single-vantage, point-in-time D1/CF-API reads under concurrent writers.
 - No client-side vantage, no Cloudflare account-settings read, no worker-side logs.
+- The `401` in §3.5 is a **client-reported** observation. I cannot reproduce it from inside the
+  Worker, so it is recorded as reported, not independently re-measured. The 404 is mine.
+- D17's "frozen" is inferred from `MAX(updated_at)`; a row could in principle be updated without
+  that column changing. A `terminal_at` column would remove the inference.
+- `_chain.depth` is read from `payload` JSON and is **self-reported by the runner**, so the D17
+  depth table describes what the runner claimed, not an independently enforced bound.
 - 209 tables proves fragmentation, not that each table is wrong (`proof_*`, `adr_*`, `email_*`
   are legitimately distinct).
 - `fleet_crons.last_fired` may be registry-seeded.
@@ -251,7 +297,8 @@ derived from `err24>0`, which trains operators to ignore the column.
   sweep firing 09-10/11/12/13, intent queue drained to 0, `qnfo-backlog-exec` deployed 1.2.7
   today, current-cycle probe failure 0.21%, governance kernel actively blocking bad
   publications. The gap is sensing and coordination — not acting, and not governance in
-  principle.
+  principle. D17 specifically is a **state-machine bookkeeping bug on 26 rows whose answers
+  already exist**, not lost work.
 
 ## 5. Priority
 
@@ -263,3 +310,5 @@ derived from `err24>0`, which trains operators to ignore the column.
 6. Consolidate autonomy/kill-switch state behind one evaluator consulted before every L5 action.
 7. Un-freeze `integration_state`; drain the 496 untriaged `idea_proposals`; instrument
    `fleet_runs` and `fleet_crons` for all 40 scheduled workers.
+8. Make `ops_jobs` reach a terminal state on response write, and add `terminal_at` (D17). This is
+   a small, self-contained fix that removes a whole class of "did my job finish?" ambiguity.
