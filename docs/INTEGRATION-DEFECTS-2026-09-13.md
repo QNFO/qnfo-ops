@@ -13,10 +13,15 @@ Every figure is a live tool return from the 2026-09-13 session. Ops-workspace mi
 > corroboration exposed **D16: the SAI/report-card time series is effectively empty**
 > (1 row, `sai` and `grade` both NULL).
 >
-> **REVISION 4 (this revision).** Adds **D17 — the async job queue never terminates**: 26 jobs
-> hold a finished answer in `status='continuing'`, frozen ~6 h. Adds §3.5, retracting an
-> operational instruction this session emitted that told a client to poll `GET /v1/jobs/:id`
-> **without** a bearer token; that instruction produced a live `401`.
+> **REVISION 4.** Adds **D17 — the async job queue never terminates**: 26 jobs hold a finished
+> answer in `status='continuing'`, frozen ~6 h. Adds §3.5, retracting an operational
+> instruction this session emitted that told a client to poll `GET /v1/jobs/:id` **without** a
+> bearer token; that instruction produced a live `401`.
+>
+> **REVISION 5 (this revision).** Adds **§6, an independent re-verification** of the top defects
+> at 2026-09-13T13:28Z. D15, D16 and D8 reproduce exactly; D17 grew again; **D14 drifted
+> downward (305 → 303)**, which contradicts the growth reading recorded in revision 1. D14's
+> severity ordering is unchanged; its growth claim is not.
 
 ## 0. Term caveat
 
@@ -47,7 +52,7 @@ AF-1 is the substrate (operations); the signal-organism is the payload (research
 | Store | Open | Visible to ops tooling? |
 |---|---|---|
 | `agent_issues` | **12** | Yes (`backlog_status`, `ops_issues_list`) |
-| `issue_ledger` | **305** | **No** |
+| `issue_ledger` | **303** (305 at 12:21Z) | **No** |
 | `fleet_issue_log` | 41 rows | No |
 | `fleet_issue_dispatch` | 34 rows | No |
 
@@ -55,6 +60,13 @@ AF-1 is the substrate (operations); the signal-organism is the payload (research
 ≈ 150/day). Axiom A3 violated at the governance layer: the instrument that measures the backlog
 is not connected to the backlog. Ops reports sourced from `agent_issues` under-state open work
 by ~25×.
+
+**Qualification added in revision 5.** The 13:28Z re-measure gives **303** open
+(`resolved` 21, `acknowledged` 1 → 325 rows total). So the last hour was **−2, not +25**. A
+single observation does not disprove the earlier growth, but it does mean the "+150/day"
+extrapolation was a rate estimated from one 5.5-hour window and should not be quoted as a
+standing trend. The **25× visibility gap itself reproduces exactly** (303 / 12 = 25.3×) and is
+the part that matters.
 
 ### D16 — The SAI / report-card time series is effectively empty
 
@@ -76,7 +88,7 @@ The fleet's headline health metric has no usable history:
 Consequence: SAI is a headline ALVE-1 metric with **no queryable trend**, so no metric built on
 it (integration factor, report card, weekly watchtower) can be time-series validated.
 
-### D17 — The async job queue never terminates: 26 finished jobs stuck in `continuing`
+### D17 — The async job queue never terminates: finished jobs stuck in `continuing`
 
 `ops_jobs` at 2026-09-13T13:25Z, rows carrying `_chain`:
 
@@ -97,6 +109,9 @@ chain-midpoint row whose successor was spawned but which was never marked `succe
 indistinguishable from a job still working. A poller with a timeout reads them as failures; a
 poller without one hangs. Same failure class as the parent patch doc's D2 (the durable path's
 state does not converge), on the terminal side rather than the envelope side.
+
+**Still accruing:** at 13:28Z the cohort is **27**, all with non-empty responses, newest
+`updated_at` 13:22:47Z. One new stuck row appeared inside a five-minute observation window.
 
 Fix (staged in `qnfo-workers/qnfo-ops/patches/`): write `response` and the terminal status in one
 statement, add a `terminal_at` column, and add a reaper for rows with a response and no update.
@@ -274,6 +289,9 @@ derived from `err24>0`, which trains operators to ignore the column.
    A2 ("polling from a browser/client is untested here"); (b) job results **never required that
    route** — `ops_jobs.response` is a plain readable column, which is how every result in this
    session was actually retrieved.
+6. **D14 "+150/day growth" — DEMOTED to an unreplicated estimate (revision 5).** The rate came
+   from a single 5.5-hour window (270 → 305). The 13:28Z re-measure is 303, i.e. net −2 over the
+   following hour. The 25× visibility gap reproduces; the trend does not.
 
 ## 4. Honest limits
 
@@ -297,12 +315,12 @@ derived from `err24>0`, which trains operators to ignore the column.
   sweep firing 09-10/11/12/13, intent queue drained to 0, `qnfo-backlog-exec` deployed 1.2.7
   today, current-cycle probe failure 0.21%, governance kernel actively blocking bad
   publications. The gap is sensing and coordination — not acting, and not governance in
-  principle. D17 specifically is a **state-machine bookkeeping bug on 26 rows whose answers
+  principle. D17 specifically is a **state-machine bookkeeping bug on rows whose answers
   already exist**, not lost work.
 
 ## 5. Priority
 
-1. Unify the issue ledgers — `issue_ledger` (305 open) is invisible to every ops tool (A3).
+1. Unify the issue ledgers — `issue_ledger` (303 open) is invisible to every ops tool (A3).
 2. Fix the `report_card_history` schema mismatch so SAI has a time series (D16).
 3. Extend probes from 10 → 55 via **service bindings** (no public-hostname dependency).
 4. Add `health_url` / `owner` / `autonomy_level` / `crons` to `service_registry`.
@@ -312,3 +330,36 @@ derived from `err24>0`, which trains operators to ignore the column.
    `fleet_runs` and `fleet_crons` for all 40 scheduled workers.
 8. Make `ops_jobs` reach a terminal state on response write, and add `terminal_at` (D17). This is
    a small, self-contained fix that removes a whole class of "did my job finish?" ambiguity.
+
+## 6. Independent re-verification — 2026-09-13T13:28Z
+
+The figures in §2 were inherited from earlier turns of this session. Revision 5 re-measured the
+load-bearing ones directly, in one batch, so that the reader can tell which numbers are inherited
+and which are fresh.
+
+| claim | rev-1 figure | re-measured 13:28Z | verdict |
+|---|---|---|---|
+| D14 `issue_ledger` open | 305 | **303** (resolved 21, acknowledged 1) | **drifted −2** |
+| D14 `agent_issues` open | 12 | **12** | reproduces |
+| D14 ratio | ~25× | **25.3×** | reproduces |
+| D15 table count | 209 | **209** | reproduces exactly |
+| D16 `report_card_history` rows | 1 | **1** (`sai` NULL, `grade` NULL, newest 09-10T12:33Z) | reproduces exactly |
+| D8 `service_registry` rows | 55 | **55**, 0 missing `version` | reproduces exactly |
+| D8 rows with no `purpose` | 21 (38%) | **21** | reproduces exactly |
+| D17 `continuing` jobs | 26 | **27**, all with non-empty `response` | **grew +1 in ~5 min** |
+
+Two notes on method, both of which cut against the document:
+
+1. **D15's 209 is a count, not a diagnosis.** Reproducing it exactly confirms the measurement and
+   the stability of the schema, and tells you nothing about whether consolidation is warranted.
+2. **D14's growth claim did not survive.** Reporting the drift costs the document its most
+   alarming single number (≈150/day) while leaving its structural finding (a 25× visibility gap)
+   fully intact. The drift is recorded in §3.6 rather than silently updated in §2, because the
+   difference between "re-measured" and "revised to look better" is the whole point of this
+   section.
+
+**Not re-verified here** (inherited, single-vantage, and out of the batch): D1 probe coverage,
+D12 cron ledgers, D4 deploy retries, D7 gate log, D5 freeze duration, D6 triage counts, D10
+gateway failures, D9 research-store quality, D13 `venue-radar-scan`. These remain as recorded
+with their original evidence grade — a fresh read of each is the obvious next step and was not
+performed in this revision.
