@@ -4,6 +4,13 @@ Companion to `SELF-AUDIT-GAPS-2026-09-03.md`. Author: qnfo-ops / ops-exec.
 Every figure is a live tool return from the 2026-09-13 session. Ops-workspace mirror:
 `ops-workspace/audits/2026-09-13-quniverse-architecture-and-integration-audit.md`.
 
+> **CORRECTION 2 (2026-09-13, later same session).** Revision 1 of this document asserted
+> "the self-governing layer does not exist." **That was wrong** and is withdrawn — see §3.2.
+> A governance kernel exists, is `ACTIVE`, and is actively blocking writes. The defect is
+> *fragmentation and infrequent exercise*, not absence. D7 below is rewritten accordingly.
+> D12 is extended (cron registry holds 6 rows against 40 scheduled workers, and two weekly
+> Monday crons show no evidence of their 2026-09-07 fire).
+
 ## 0. Term caveat
 
 "Quniverse" appears in no store reachable from the ops endpoint (Vectorize research/notes/tasks/
@@ -55,6 +62,9 @@ that measures the backlog is not connected to the backlog. Any ops report source
 - **analytics (12)**: `analytics_dash_*` ×8 + `analytics_ae_events`, `analytics_daily`,
   `analytics_events`, `analytics_metric_triggers`
 - **calibration (10)**: `fleet_cal_*` ×7 + `ai_calibration_*` ×3 (incl. `calibration_register`)
+- **governance / self-modification (8+)**: `governance_kernel`, `gov_gate_log`,
+  `autonomy_scores`, `self_rewrite_state` (67 rows), `evolve_candidates`, `evolve_rollback`
+  (41 rows), `freshness_guard` (16 rows), `decisions`, `adr*`, `meta_claims`, `meta_changes`
 - **duplicated-and-abandoned**: `r2_files` (0 rows) + `r2_files_new` (0 rows);
   `cf_pages_domain_mappings` + `cf_pages_domain_mappings_new`
 
@@ -67,13 +77,22 @@ Live probe set = **10 targets** (8 workers + 2 sites): `qnfo-social`, `qnfo-pape
 `qnfo-outreach`, `qnfo-ops`, `qnfo-kaizen`, `qnfo-fleet-dashboard`, `qnfo-ai`, `personal-api`,
 `qnfo.org`, `papers.qnfo.org`. Deployed workers = **55** → **47 workers with zero liveness
 verification**. AF-1 Tier-3 floor states "universal… target 100%".
+Note: `autonomy_scores.s1_operations` (scored 2026-09-10) cites "81/81 probes" as evidence —
+**that figure no longer holds** and the self-assessment is stale.
 
-### D12 — The "run ledger" spine is barely instrumented
+### D12 — Scheduling observability is thin in BOTH ledgers (extended)
 
-`fleet_runs`: **20 distinct cron names, 482 runs, earliest 2026-09-10T07:00Z** against
-**40 scheduled workers**. Since 09-11 only three crons appear (`demo-heartbeat-minutely`,
-`systems-watch-hourly-cron`, `venue-radar-scan`). AF-1's L2 "three-questions test" cannot be
-answered; silent-cron detection is structurally impossible.
+- **Run ledger** `fleet_runs`: **20 distinct cron names, 482 runs, earliest 2026-09-10T07:00Z**
+  against **40 scheduled workers**. Since 09-11 only three crons appear
+  (`demo-heartbeat-minutely`, `systems-watch-hourly-cron`, `venue-radar-scan`).
+- **Cron registry** `fleet_crons`: **6 rows, 5 enabled** (`demo-heartbeat-minutely`,
+  `systems-watch-hourly-cron`, `venue-radar-scan`, `report-card-weekly-cron`,
+  `bench-arc-weekly`; `demo-venue-radar-daily` disabled).
+
+**Silent-fire evidence (new):** 2026-09-07 was a **Monday**. Both weekly Monday crons show
+`last_fired` on **Thursday 2026-09-10** (12:32Z and 12:29Z) — i.e. **no evidence of their
+scheduled Monday 2026-09-07 fire**; both are next due 2026-09-14 (Monday). Caveat: `last_fired`
+could be registry-seeded rather than observed, so this is a signal, not proof.
 
 ### D13 — `venue-radar-scan`: 100% failed, daily, unhealed, unescalated
 
@@ -94,12 +113,34 @@ the registry version. `self_heal_actions` (1,372 rows): healed 528, **deferred 4
 **detected 170**, resolved 130, **failed 50**, dispatched 35, executed 10 → **615 findings
 counted but not closed**, violating AF-1 `DRIFT-SELFHEAL-WIRING-1`.
 
-### D7 — The self-governing layer does not exist
+### D7 (REWRITTEN) — The governing layer exists but is fragmented and barely exercised
 
-`policies` and `incidents` are **absent** from the 209-table schema. Kill-switch/autonomy state
-lives as ad-hoc key/value in `fleet_deploy_state` (`auto_heal=1`, `enabled=1`). AF-1 §L3.5 and
-axiom A7 require one policy table plus one evaluator consulted before every action. Its absence
-is why D4's unbounded retry is possible.
+**Revision 1 wrongly claimed absence. Corrected state:**
+
+`governance_kernel` holds **1 row**, `id=1`, `kernel_version = 2026-09-01.1`, `status = ACTIVE`,
+`ratified_on = 2026-09-01 08:39:03`, `spec_ref = docs/THIN-CLIENT-MIGRATION-SPEC-V2.md §4`.
+`autonomy_boundary` = "procedural/process/optimization content BELOW the kernel via propose →
+gate (automated verification + HARD-GATE check) → commit (versioned write + rollback to
+last_known_good)". A **13-gate manifest** is ratified: `ENGLISH-ONLY`, `BLAME-EXTERNAL-1`,
+`CHANGE-AUDIT-FIRST-1`, `THIN-CLIENT-MANDATE`, `TEST-SEND-EXTERNAL-1`,
+`EMAIL-SUBJECT-SPAM-TOKENS-1`, `MANDATE-1-EXECUTION`, `MANDATE-2-PLAN`, `MANDATE-3-REDTEAM`,
+`MANDATE-4-SKILL`, `MANDATE-5-PHASES`, `PERSONAL-QNFO-SEPARATION-1`, `GOVERNANCE-KERNEL-SELF`.
+
+`gov_gate_log` proves it is **live and blocking**, not decorative — 3 rows total:
+
+| ts | decision | reason | actor |
+|---|---|---|---|
+| 2026-09-11 09:30:12 | **BLOCK** | quality gate: lit_review=0 AND refs=2<5; no_verification_marker | `qnfo-research-exec` |
+| 2026-09-11 09:10:43 | **BLOCK** | same | `qnfo-research-exec` |
+| 2026-09-01 08:42:48 | APPROVE | kernel ratified autonomously | agent |
+
+**The surviving defect is therefore narrower but real:** the kernel is a single version, ratified
+once, with only **3 gate-log entries ever** (newest 2026-09-11). The autonomy/kill-switch state is
+**split across three places** — `governance_kernel.autonomy_boundary`,
+`fleet_deploy_state` key/value (`auto_heal=1`, `enabled=1`), and `autonomy_scores` — with no
+single evaluator consulted before every L5 action. AF-1 §L3.5's "one table, one evaluator" is
+still unmet; A7's blast-radius caps are not enforced anywhere (which is why D4's unbounded
+retry is possible). This is a D15-class fragmentation finding, not an absence finding.
 
 ### D5 — Integration assessment frozen for 47h
 
@@ -159,9 +200,16 @@ derived from `err24>0`, which trains operators to ignore the column.
    the **observer**, not the target. Surviving finding: the registry has no `health_url` column
    and its 55 `base_url` values point at a surface nothing has probed since the 2026-09-07
    `external-curl` rows (which returned 200).
-2. **Silent-cron hypothesis — DISPROVEN as stated.** `ai-health-prober` (hourly, last run 00:15)
-   and `qnfo-paper-explainer` (daily, last run 09-09) cannot be confirmed or refuted because the
-   run ledger does not instrument them (see D12). Withdrawn as an assertion; folded into D12.
+2. **"The self-governing layer does not exist" — WITHDRAWN (CORRECTION 2).** This was inferred
+   from the absence of tables *named* `policies`/`incidents`. That is naming a table instead of
+   testing a capability. `governance_kernel` (ACTIVE, 13 ratified gates, `autonomy_boundary`
+   defined) and `gov_gate_log` (2 live BLOCK decisions against `qnfo-research-exec` on
+   2026-09-11) exist and function. Methodological lesson: **check the capability before
+   declaring the absence of a layer.**
+3. **Silent-cron hypothesis — DISPROVEN as stated.** `ai-health-prober` (hourly, last run 00:15)
+   and `qnfo-paper-explainer` (daily, last run 09-09) cannot be confirmed or refuted because
+   neither ledger instruments them (see D12). Withdrawn as an assertion; folded into D12, which
+   now carries a *positive* silent-fire signal for the two weekly Monday crons instead.
 
 ## 4. Honest limits
 
@@ -169,10 +217,17 @@ derived from `err24>0`, which trains operators to ignore the column.
 - No client-side vantage, no Cloudflare account-settings read, no worker-side logs.
 - The 209-table count proves fragmentation, not that each table is wrong; several are
   legitimately distinct (`proof_*`, `adr_*`, `email_*`).
+- `fleet_crons.last_fired` may be registry-seeded rather than observed; the weekly-cron miss is
+  a signal, not proof.
+- `autonomy_scores` (11 rows, scored 2026-09-10, next 2026-10-10, overall 3.6/5) is a
+  **self-assessment**, not a measurement. It independently names this document's thesis —
+  "42/79 island workers", "island outputs do not close into S1", "no redundancy / single ops
+  gateway" — but its `s1_operations` evidence ("81/81 probes") is stale versus live coverage.
 - Strongest counter-argument to the framing: the system is **partially instrumented, not
   broken**. Working loops: `fleet_runs` 476 ok / 5 failed, chat canary 12/12 ok, intent queue
   fully drained (0 pending), `qnfo-backlog-exec` deployed 1.2.7 on 2026-09-13, current-cycle
-  probe failure 0.21%. The gap is sensing and governing, not acting.
+  probe failure 0.21%, governance kernel actively blocking bad publications. The gap is sensing
+  and coordination, not acting or governing-in-principle.
 
 ## 5. Priority
 
@@ -180,6 +235,8 @@ derived from `err24>0`, which trains operators to ignore the column.
 2. Extend probes from 10 → 55 via **service bindings** (no public-hostname dependency).
 3. Add `health_url` / `owner` / `autonomy_level` / `crons` to `service_registry`.
 4. Break the `personal-companion` / `qnfo-cloud-ops` hourly deploy retry (backoff + breaker).
-5. Create `policies` + `incidents`; route every L5 action through one evaluator.
+5. Consolidate autonomy/kill-switch state (kernel boundary + `fleet_deploy_state` +
+   `autonomy_scores`) behind one evaluator consulted before every L5 action.
 6. Un-freeze `integration_state`; drain the 496 untriaged `idea_proposals`.
-7. Instrument `fleet_runs` for all 40 scheduled workers.
+7. Instrument `fleet_runs` and `fleet_crons` for all 40 scheduled workers; investigate the
+   missing 2026-09-07 weekly Monday fires.
