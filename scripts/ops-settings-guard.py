@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""ops-settings-guard.py - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
+User directive (2026-09-09): HARDEN AND MANDATE TO ALL AGENTS/PROCESSES - DO NOT CHANGE
+THESE SETTINGS; enforce systemwide across the fleet (DeepChat / ChatBox / SannaBot).
+
+CANONICAL (immutable) ops-exec settings - qnfo-ops v2.9.1+:
+  worker.js : DEFAULT_MAX_OUT = 393216 | OPS_ANSWER_CAP default = 393216 (handleChat + workflow)
+              relay maxOut clamp = 393216 | MODEL_CTX = 1048576 | OPS_LOOP_DEADLINE_MS = 300000
+              Workflow step.do timeout = "15 minutes"
+  wrangler.toml : [limits] cpu_ms = 300000
+  DeepChat (DB agent.db + Roaming app-settings.json) : defaultModel AND preferredModel =
+              QNFO-OPS/ops-exec; QNFO-OPS models ops-exec + deepseek-v4-flash ctx=1048576
+              maxOutput/maxTokens=393216 timeout=3600000
+  ChatBox (Roaming/xyz.chatboxapp.app/config.json providers.qnfo-ops) : ops-exec +
+              deepseek-v4-flash ctx=1048576 maxOutput=393216
+  SannaBot : Android Google-Play OpenAI-compatible client - NO local store on this machine
+              (documented absence); enforcement = /v1/models advertisement (ctx/maxOut fields)
+              + qnfo-ai/QUICKSTART.md + qnfo-ops/CHATBOX-SETUP.md (must keep canonical values).
+
+Behavior: idempotent self-healing aligner (same as model_guard.py). Default (no --check)
+aligns any drift and read-backs. --check only reports (no writes) and exits 1 on drift.
+Exit codes: 0 = clean/aligned | 1 = drift and fix failed / drift in --check | 2 = check error.
+Canonical source: QNFO/qnfo-ops/scripts/ops-settings-guard.py (mirror: .deepchat/scripts).
+"""
+import json, os, re, sqlite3, sys, tempfile, datetime
+
+CTX, MAXOUT, TIMEOUT = 1048576, 393216, 3600000
+DESIRED_KEYS = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}
+CHECK_ONLY = "--check" in sys.argv[1:]
+
+HOME = os.path.expanduser("~")
+WORKER = os.path.join(HOME, "Dev", "qnfo-workers", "qnfo-ops", "worker.js")
+WRANGLER = os.path.join(HOME, "Dev", "qnfo-workers", "qnfo-ops", "wrangler.toml")
+DC_APP = os.path.join(os.environ.get("APPDATA", ""), "DeepChat")
+DC_DB = os.path.join(DC_APP, "app_db", "agent.db")
+DC_JSON = os.path.join(DC_APP, "app-settings.json")
+CB_JSON = os.path.join(os.environ.get("APPDATA", ""), "xyz.chatboxapp.app", "config.json")
+DOC_CHECK = [
+    os.path.join(HOME, "Dev", "qnfo-workers", "qnfo-ai", "QUICKSTART.md"),
+    os.path.join(HOME, "Dev", "qnfo-workers", "qnfo-ops", "CHATBOX-SETUP.md"),
+]
+WORKER_REQS = [
+    ("DEFAULT_MAX_OUT", r"var DEFAULT_MAX_OUT = (\d+)", MAXOUT),
+    ("OPS_ANSWER_CAP default", r'"OPS_ANSWER_CAP", (\d+)', MAXOUT),
+    ("relay maxOut clamp", r"clamp\(maxTokens, (\d+)\)", MAXOUT),
+    ("MODEL_CTX", r"var MODEL_CTX = (\d+)", CTX),
+    ("OPS_LOOP_DEADLINE_MS", r"OPS_LOOP_DEADLINE_MS\", (\d+)", 300000),
+]
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+def problems():
+    p = []
+    try:
+        src = open(WORKER, encoding="utf-8", errors="replace").read()
+    except OSError as e:
+        return ["worker.js unreadable: " + str(e)]
+    for label, pat, want in WORKER_REQS:
+        m = re.search(pat, src)
+        if not m:
+            p.append("worker " + label + ": missing")
+        elif int(m.group(1)) != want:
+            p.append("worker " + label + "=" + m.group(1) + " (want " + str(want) + ")")
+    if 'timeout: "15 minutes"' not in src:
+        p.append('worker Workflow step.do timeout missing "15 minutes"')
+    if 'var VERSION = "2.9.' not in src and 'var VERSION = "2.10.' not in src and 'var VERSION = "3.' not in src:
+        p.append("worker VERSION below 2.9.x (guard expects >= 2.9.1)")
+    try:
+        t = open(WRANGLER, encoding="utf-8").read()
+        m = re.search(r"cpu_ms = (\d+)", t)
+        if not m or int(m.group(1)) != 300000:
+            p.append("wrangler cpu_ms=" + (m.group(1) if m else "missing") + " (want 300000)")
+    except OSError as e:
+        p.append("wrangler.toml unreadable: " + str(e))
+    return p
+
+def model_id(m):
+    return m.get("modelId") or m.get("id") or m.get("model")
+
+def find_models(models):
+    by = {}
+    for m in models or []:
+        if isinstance(m, dict):
+            mid = model_id(m)
+            if mid:
+                by[mid] = m
+    return by
+
+def dc_db_drift(c):
+    p = []
+    for k in ("defaultModel", "preferredModel"):
+        row = c.execute("SELECT value_json FROM app_settings WHERE key=?", (k,)).fetchone()
+        try:
+            v = json.loads(row[0]) if row else None
+        except Exception:
+            p.append("dc-db " + k + ": unparseable"); continue
+        if v != DESIRED_KEYS:
+            p.append("dc-db " + k + ": " + json.dumps(v))
+    for mid in ("ops-exec", "deepseek-v4-flash"):
+        row = c.execute("SELECT config_json FROM model_configs WHERE provider_id=? AND model_id=?",
+                        ("QNFO-OPS", mid)).fetchone()
+        if not row:
+            p.append("dc-db model_config QNFO-OPS/" + mid + ": missing"); continue
+        try:
+            conf = json.loads(row[0]).get("config", {})
+        except Exception:
+            p.append("dc-db model_config QNFO-OPS/" + mid + ": unparseable"); continue
+        if int(conf.get("maxTokens") or 0) != MAXOUT:
+            p.append("dc-db QNFO-OPS/" + mid + " maxTokens=" + str(conf.get("maxTokens")))
+        if int(conf.get("contextLength") or 0) != CTX:
+            p.append("dc-db QNFO-OPS/" + mid + " ctx=" + str(conf.get("contextLength")))
+        if int(conf.get("timeout") or 0) < TIMEOUT:
+            p.append("dc-db QNFO-OPS/" + mid + " timeout=" + str(conf.get("timeout")))
+    return p
+
+def dc_json_drift(d):
+    p = []
+    for k in ("defaultModel", "preferredModel"):
+        if d.get(k) != DESIRED_KEYS:
+            p.append("dc-json " + k + ": " + json.dumps(d.get(k)))
+    found = {}
+    for pr in d.get("providers", []):
+        if (pr.get("id") or "") == "QNFO-OPS":
+            found = find_models(pr.get("models"))
+    for mid in ("ops-exec", "deepseek-v4-flash"):
+        m = found.get(mid)
+        if not m:
+            p.append("dc-json QNFO-OPS/" + mid + ": missing"); continue
+        if int(m.get("maxOutput") or m.get("maxTokens") or 0) != MAXOUT:
+            p.append("dc-json QNFO-OPS/" + mid + " maxOutput=" + str(m.get("maxOutput") or m.get("maxTokens")))
+        if int(m.get("contextWindow") or m.get("contextLength") or 0) != CTX:
+            p.append("dc-json QNFO-OPS/" + mid + " ctx=" + str(m.get("contextWindow") or m.get("contextLength")))
+    return p
+
+def chatbox_drift(d):
+    p = []
+    ops = (d.get("settings", {}).get("providers", {}) or {}).get("qnfo-ops", {})
+    if not ops:
+        return ["chatbox qnfo-ops provider: missing"]
+    found = find_models(ops.get("models"))
+    for mid in ("ops-exec", "deepseek-v4-flash"):
+        m = found.get(mid)
+        if not m:
+            p.append("chatbox qnfo-ops/" + mid + ": missing"); continue
+        if int(m.get("maxOutput") or 0) != MAXOUT:
+            p.append("chatbox qnfo-ops/" + mid + " maxOutput=" + str(m.get("maxOutput")))
+        if int(m.get("contextWindow") or 0) != CTX:
+            p.append("chatbox qnfo-ops/" + mid + " ctx=" + str(m.get("contextWindow")))
+    return p
+
+def docs_drift():
+    p = []
+    for path in DOC_CHECK:
+        try:
+            s = open(path, encoding="utf-8", errors="replace").read()
+        except OSError:
+            p.append("doc missing: " + path); continue
+        if "393216" not in s or "1048576" not in s:
+            p.append("doc " + os.path.basename(path) + ": does not carry canonical ctx 1048576 / maxOut 393216")
+    return p
+
+def align_dc_db(c, drift):
+    for k in ("defaultModel", "preferredModel"):
+        c.execute("UPDATE app_settings SET value_json=?, updated_at=? WHERE key=?",
+                  (json.dumps(DESIRED_KEYS), now(), k))
+    for mid in ("ops-exec", "deepseek-v4-flash"):
+        row = c.execute("SELECT config_json FROM model_configs WHERE provider_id=? AND model_id=?",
+                        ("QNFO-OPS", mid)).fetchone()
+        if not row:
+            continue
+        obj = json.loads(row[0])
+        conf = obj.get("config", {})
+        conf["maxTokens"] = MAXOUT
+        conf["contextLength"] = CTX
+        conf["timeout"] = TIMEOUT
+        obj["config"] = conf
+        c.execute("UPDATE model_configs SET config_json=?, updated_at=? WHERE provider_id=? AND model_id=?",
+                  (json.dumps(obj), now(), "QNFO-OPS", mid))
+
+def align_dc_json(d):
+    d["defaultModel"] = dict(DESIRED_KEYS)
+    d["preferredModel"] = dict(DESIRED_KEYS)
+    for pr in d.get("providers", []):
+        if (pr.get("id") or "") == "QNFO-OPS":
+            for m in pr.get("models", []):
+                if model_id(m) in ("ops-exec", "deepseek-v4-flash"):
+                    m["maxOutput"] = MAXOUT
+                    m["contextWindow"] = CTX
+
+def align_chatbox(d):
+    ops = (d.get("settings", {}).get("providers", {}) or {}).get("qnfo-ops", {})
+    for m in ops.get("models", []):
+        if model_id(m) in ("ops-exec", "deepseek-v4-flash"):
+            m["maxOutput"] = MAXOUT
+            m["contextWindow"] = CTX
+
+def atomic_write(path, obj):
+    d = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".ops-guard.", suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, path)
+
+def main():
+    res = {"ts": now(), "canonical": {"ctx": CTX, "maxOutput": MAXOUT, "default": DESIRED_KEYS}}
+    probs = problems()
+    dbc = sqlite3.connect(DC_DB, timeout=10)
+    try:
+        probs += dc_db_drift(dbc)
+    except Exception as e:
+        dbc.close(); res["error"] = "dc-db: " + str(e); print(json.dumps(res)); return 2
+    try:
+        djson = json.load(open(DC_JSON, encoding="utf-8"))
+    except Exception as e:
+        dbc.close(); res["error"] = "dc-json: " + str(e); print(json.dumps(res)); return 2
+    probs += dc_json_drift(djson)
+    try:
+        cb = json.load(open(CB_JSON, encoding="utf-8"))
+    except Exception as e:
+        dbc.close(); res["error"] = "chatbox: " + str(e); print(json.dumps(res)); return 2
+    probs += chatbox_drift(cb)
+    probs += docs_drift()
+    res["drift"] = probs
+    if not probs:
+        dbc.close()
+        res["state"] = "clean"
+        print(json.dumps(res)); return 0
+    if CHECK_ONLY:
+        dbc.close()
+        res["state"] = "drift"
+        print(json.dumps(res)); return 1
+    try:
+        align_dc_db(dbc, probs); dbc.commit()
+    except Exception as e:
+        dbc.close(); res["state"] = "db-fix-failed"; res["error"] = str(e); print(json.dumps(res)); return 1
+    align_dc_json(djson)
+    try:
+        atomic_write(DC_JSON, djson)
+    except Exception as e:
+        dbc.close(); res["state"] = "dc-json-fix-failed"; res["error"] = str(e); print(json.dumps(res)); return 1
+    align_chatbox(cb)
+    try:
+        atomic_write(CB_JSON, cb)
+    except Exception as e:
+        dbc.close(); res["state"] = "chatbox-fix-failed"; res["error"] = str(e); print(json.dumps(res)); return 1
+    rb = []
+    rb += dc_db_drift(dbc)
+    d2 = json.load(open(DC_JSON, encoding="utf-8")); rb += dc_json_drift(d2)
+    cb2 = json.load(open(CB_JSON, encoding="utf-8")); rb += chatbox_drift(cb2)
+    dbc.close()
+    res["readback_drift"] = rb
+    if rb:
+        res["state"] = "fix-verify-failed"; print(json.dumps(res)); return 1
+    res["state"] = "aligned"
+    print(json.dumps(res)); return 0
+
+if __name__ == "__main__":
+    sys.exit(main())

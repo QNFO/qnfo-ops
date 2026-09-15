@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""fleet-manifest-sweep.py v2.0 - self-contained fleet self-documentation generator.
+"""fleet-manifest-sweep.py v2.1 - self-contained fleet self-documentation generator.
 
-v2.0 (2026-09-03, INFRA-AUDIT S0-P0): the enumeration + /health-probe stage used to live
+v2.0 (2026-09-03, INFRA-AUDIT S0-P0); v2.1 (2026-09-06): + Consolidation & governance candidates section (weekly integration audit): the enumeration + /health-probe stage used to live
 outside this script (cron wrote a Temp fleet_rows.json ad hoc), which produced
 NO-HEALTH false negatives and let hand-edited cycle notes drift the counts.
 Now self-contained: CF API worker list + live /health probes (browser UA, correct
@@ -119,7 +119,7 @@ def main():
         rows.append({'name': name, 'version': ver, 'modified': (w.get('modified_on') or '')[:19].replace('T', ' ')})
     now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     L = ['# QNFO FLEET MANIFEST — Cloudflare Workers Ecosystem', '',
-         '> Auto-generated ' + now + ' by fleet-manifest-sweep.py v2.0 (self-contained enumeration + /health probes).',
+         '> Auto-generated ' + now + ' by fleet-manifest-sweep.py v2.1 (self-contained enumeration + /health probes).',
          '> Living inventory; weekly Fleet Drift cron (42b1988c) re-generates this file from live CF state - do NOT hand-edit;',
          '> deploy history lives in qnfo-audit deployment_history + git log.',
          '', '## Self-documentation policy (FLEET-SELF-DOC-1)', '',
@@ -154,6 +154,46 @@ def main():
     drift = sum(1 for l in L if '| DRIFT ' in l)
     gap = sum(1 for l in L if ('| GAP ' in l) or ('| PARTIAL ' in l))
     nonsemver = sum(1 for l in L if '| VERSION-FORMAT ' in l)
+    # --- Consolidation & governance candidates (auto; v2.1 2026-09-06 integration audit) ---
+    def _sd_of(r):
+        nm, ver = r['name'], r['version']
+        d = repo_dir(nm); rv = deployed_version(nm)
+        if ver is None or ver in ('NO-HEALTH', 'ERR', 'None', 'True'):
+            ver = 'NO-HEALTH'
+        if not d:
+            return 'GAP'
+        if rv is None:
+            return 'PARTIAL'
+        if ver in ('NO-VERSION', 'ROOT-ONLY'):
+            return 'PARTIAL'
+        if ver == 'AUTH-GATED':
+            return 'GAP'
+        if rv.lstrip('vV') != ver.lstrip('vV') and ver not in ('NO-HEALTH', 'AUTH-GATED'):
+            return 'DRIFT'
+        return 'OK'
+    cron_count = {}
+    for w in scripts:
+        nm = w['id'] if isinstance(w.get('id'), str) else w.get('name')
+        try:
+            sched = cf_api('/accounts/%s/workers/scripts/%s/schedules' % (ACCOUNT, nm))
+            cron_count[nm] = len((sched.get('result') or {}).get('schedules') or [])
+        except Exception:
+            cron_count[nm] = 0
+    monolith = [r['name'] for r in rows if cron_count.get(r['name'], 0) >= 4]
+    monolith.sort(key=lambda n: -cron_count.get(n, 0))
+    gap_list = sorted([r['name'] for r in rows if _sd_of(r) == 'GAP'])
+    cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=45)).strftime('%Y-%m-%d %H:%M:%S')
+    dormant = sorted([r['name'] for r in rows if r['modified'] and r['modified'] < cutoff])
+    L += ['', '## Consolidation & governance candidates (auto)', '',
+          'Cron-density monoliths (>=4 schedules; merge/split candidates): ' + (', '.join(monolith) if monolith else 'none'),
+          '',
+          'No canonical repo dir (GAP - re-home per FLEET-SELF-DOC-1 or retire): ' + str(len(gap_list)),
+          (('- ' + ', '.join(gap_list)) if gap_list else '- none'),
+          '',
+          'Dormant >45d since modified (archive/retire candidates): ' + (', '.join(dormant) if dormant else 'none'),
+          '',
+          '> Advisory output of the recurring integration/consolidation audit (weekly sweep + qnfo-kaizen digest).',
+          '> Baseline 2026-09-06: see agent_issues source=qnfo-ops-audit-2026-09-06. Do NOT hand-edit - regenerate.']
     L += ['', '## Summary', '',
           '- Total workers: ' + str(len(rows)),
           '- Self-doc OK: ' + str(ok),
