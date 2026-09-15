@@ -68,19 +68,62 @@ def stale_bindings(live):
     return stale
 
 
+def do_export_gaps():
+    """POSTCONDITION: list of (toml_path, class_name) where wrangler.toml declares a
+    [[durable_objects.bindings]] class_name that worker.js does NOT module-level export.
+    Catches the qnfo-fleet-control defect (DO class not exported -> wrangler 10061/10099)."""
+    gaps = []
+    if not os.path.isdir(WORKERS_DIR):
+        return gaps
+    for d in sorted(os.listdir(WORKERS_DIR)):
+        toml = os.path.join(WORKERS_DIR, d, "wrangler.toml")
+        js = os.path.join(WORKERS_DIR, d, "worker.js")
+        if not (os.path.isfile(toml) and os.path.isfile(js)):
+            continue
+        try:
+            txt = open(toml, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        classes = []
+        for block in re.split(r"\[\[durable_objects\.bindings\]\]", txt)[1:]:
+            m = re.search(r'class_name\s*=\s*"([^"]+)"', block)
+            if m:
+                classes.append(m.group(1))
+        if not classes:
+            continue
+        try:
+            code = open(js, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        for cn in classes:
+            # module-level export: `export { X }` / `export class X` / `export const X =` / `export { X as`
+            if not re.search(r"export\b[^;{}]*\b" + re.escape(cn) + r"\b", code):
+                gaps.append((toml, cn))
+    return gaps
+
+
 def main():
     live = live_workers()
     if live is None:
         return 0
     stale = stale_bindings(live)
+    dogaps = do_export_gaps()
     print(f"live workers: {len(live)}")
-    if not stale:
-        print("OK: no stale service bindings")
+    rc = 0
+    if not stale and not dogaps:
+        print("OK: no stale service bindings; no DO-export gaps")
         return 0
-    print(f"STALE SERVICE BINDINGS: {len(stale)} (target not in live worker set)")
-    for path, svc in stale:
-        print(f"  {path} -> {svc}")
-    return 1 if "--strict" in sys.argv else 0
+    if stale:
+        print(f"STALE SERVICE BINDINGS: {len(stale)} (target not in live worker set)")
+        for path, svc in stale:
+            print(f"  {path} -> {svc}")
+        rc = 1
+    if dogaps:
+        print(f"DO-EXPORT GAPS: {len(dogaps)} (durable_objects class not module-exported)")
+        for path, cn in dogaps:
+            print(f"  {path} -> class {cn}")
+        rc = 1
+    return rc if "--strict" in sys.argv else 0
 
 
 if __name__ == "__main__":
