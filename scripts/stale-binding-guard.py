@@ -96,8 +96,13 @@ def do_export_gaps():
         except OSError:
             continue
         for cn in classes:
-            # module-level export: `export { X }` / `export class X` / `export const X =` / `export { X as`
-            if not re.search(r"export\b[^;{}]*\b" + re.escape(cn) + r"\b", code):
+            # module-level export of the class AS A BINDING:
+            #   `export { X }` / `export { ... X ... }` / `export class X` / `export const X =`
+            # NOTE: `export default { X: ... }` does NOT export the binding X (it is a property of a
+            # default object), so it is correctly NOT matched (that was the qnfo-fleet-control bug).
+            p1 = r"export\s+(?:class|const|let|var|function)\s+" + re.escape(cn) + r"\b"
+            p2 = r"export\s*\{[^}]*\b" + re.escape(cn) + r"\b"
+            if not (re.search(p1, code) or re.search(p2, code)):
                 gaps.append((toml, cn))
     return gaps
 
