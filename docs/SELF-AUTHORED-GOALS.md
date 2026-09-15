@@ -1,6 +1,6 @@
 # Self-Authored Goals (SAG) — closing the deepest autonomy gap
 
-Status: **LIVE (v0.1.0)** · Date: 2026-09-14 · Worker: `qnfo-goal-author`
+Status: **LIVE (v0.2.0)** · Date: 2026-09-14 (hardened 2026-09-15) · Worker: `qnfo-goal-author` v0.2.0
 
 ## 1. What was the gap
 
@@ -93,14 +93,29 @@ than unanchored."
 
 NOT claimed: self-authored *values*. That remains absent by design and is the honest residual.
 
-## 7. Open / next rungs
+## 7. v0.2.0 hardening (audit 2026-09-15 — deferred items + failure modes closed)
 
-- **Execution linkage (v1.1):** adopted goals currently land in gtd_register (falsifiable DoD,
-  drainable by autopilot/backlog-exec) but are not yet auto-linked to the research pipeline /
-  fleet-executor task engine. Closing that loop would move "authors goals" -> "authors AND
-  executes goals end-to-end."
-- **Signal dedup:** the think-loop signal source is dominated by one repeated research theme
-  (quantum-inspired neuromorphic thermodynamics) — the same gap noted in the idea-factory.
-  A dedup/near-dup filter on candidate goals would diversify authorship.
-- **Objective-revision surfacing:** `objective-revision` proposals are stored but not yet
-  surfaced to a human-facing ratification channel. Wire to the weekly digest.
+| item | status | fix |
+|---|---|---|
+| **R1 execution linkage** | ✅ FIXED | adopted goals now also written to `task_dod_register` (source_table='self_authored_goal', due +90d). That is the DRAINABLE ledger: qnfo-autopilot censuses it (`status='open' AND due<=today`), fleet-control + dashboard read it. Previously goals sat only in `gtd_register`, which has **no fleet consumer** → inert. |
+| **R2/F3 near-dup accumulation** | ✅ FIXED | the cron fired 24h later and produced a *reworded* duplicate the hash dedup missed. Added Jaccard **OR containment** (≥0.6) against goals adopted in the last 30d. Verified: a cycle then reported `nearDup:4`, adopting only genuinely-distinct goals. |
+| **F3 root cause (upstream)** | ✅ FIXED | the think-loop lived in **qnfo-autopilot**, inserting into `self_questions` with **no dedup** (22 open / 10 distinct prefixes). Added a 7-day containment guard in `thinkLoop`. This is the mechanism fix, not a downstream filter. |
+| **R3 objective-revision surfacing** | ✅ FIXED | when `queuedRevision>0`, emits `cloud_ops_events.kind='objective-revision-proposed'` (status pending-ratification). |
+| **F2 open mutation endpoint** | ✅ FIXED | `/author` and `/reprioritize` now require `x-goal-token` == `GOAL_AUTHOR_TOKEN` (secret set); cron path unaffected. Verified 401 without token. |
+| **F7 program link** | ✅ FIXED | goals carry `program_code`; stem-regex bug (`\btopolog\b` failed on "topological") fixed. |
+| **F8 silent model failure** | ✅ FIXED | empty synthesis now emits a warning receipt. |
+| **STALE-BINDING failure mode** | ✅ FIXED (blocking) | deploying the think-loop fix exposed that **qnfo-autopilot** had a service binding to the deleted `qnfo-citation-watch` → CF API 10144, making it UNREDEPLOYABLE. Removed. Fleet-wide sweep found 6 more; fixed intent-orchestrator, tools-mcp, fleet-control; guard added (`qnfo-ops/scripts/stale-binding-guard.py`). |
+
+After v0.2.0: `/health` reports `goals_total=11, goals_active=8, goals_drainable_open=8`.
+Existing near-dup goals were retired (`status='superseded'`) and their ledger rows cancelled.
+
+## 8. Remaining (documented, not blocking)
+
+- **End-to-end execution closure:** goals are now *drainable* (task_dod_register) but not yet
+  auto-dispatched into the research pipeline / fleet-executor task engine. Next rung.
+- **personal-life-search retirement:** tools-mcp + intent-orchestrator lost the dormant
+  `personal-life-search` binding (worker retired; returns 404). If the capability is restored,
+  re-add the binding at the replacement service.
+- **qnfo-fleet-control DO defect (pre-existing):** its merged worker declares DO `FleetAdvisor`
+  without a module-level export or `[[migrations]]` block → wrangler cannot deploy it (it runs
+  because it was API-deployed). Filed as an agent_issue; needs export + migration surgery.
