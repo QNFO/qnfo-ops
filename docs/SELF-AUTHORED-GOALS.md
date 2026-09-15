@@ -119,3 +119,16 @@ Existing near-dup goals were retired (`status='superseded'`) and their ledger ro
 - **qnfo-fleet-control DO defect (pre-existing):** its merged worker declares DO `FleetAdvisor`
   without a module-level export or `[[migrations]]` block → wrangler cannot deploy it (it runs
   because it was API-deployed). Filed as an agent_issue; needs export + migration surgery.
+
+## 9. Residual remediation (2026-09-15, second pass) — all closed or correctly deferred
+
+| residual | disposition |
+|---|---|
+| **Execution auto-dispatch** | ✅ CLOSED — goal-author v0.4.0 dispatches adopted research goals into `research_queue` (`source='goal-author'`, `decision='ACCEPT'`, `status='queued'`), claimed by qnfo-idea-triage and executed to publication. Verified: `queued_for_exec=1`. |
+| **qnfo-fleet-control wrangler-deploy** | ✅ CLOSED — added module-level `export { FleetAdvisor }` + `[[migrations]] new_sqlite_classes=["FleetAdvisor"]` (the DO is vestigial/non-storage). Now wrangler-deploys. |
+| **Guard only checked `[[services]]`** | ✅ CLOSED — extended `stale-binding-guard.py` to also detect `[[durable_objects.bindings]]` class-not-exported (wrangler 10061/10099). Caught 2 more: `agent-orchestrator` (AgentTask) and `personal-api` (PersonalTwinAgent). |
+| **think-loop "not yet observed"** | ✅ CLOSED — found it was **silently dead** since ~2026-09-11: kimi-k2.6 reasoning model returned `content:""` under `max_tokens=512`. Switched to non-reasoning llama-3.3-70b + chat-shape extraction. Live-verified: `{"skipped":"near-duplicate theme"}`. |
+| **self-authored values (4.0, not 5.0)** | ✅ CLOSED (honest rung) — value-proposal loop (`/review-values` + weekly cron `0 3 * * 1`) authors objective-function revisions under ratification. Verified 3 proposals (weights/constraint). **Score held at 4.0, not 5.0**: autonomous value *adoption* remains human-ratified (residual-consent #3); 5.0 would be silent objective drift — the treated failure mode. |
+| **agent-orchestrator + personal-api DO-export gaps (new, guard-caught)** | ⏸ DEFERRED correctly — `personal-api` local is drifted (v3.2.2 vs deployed v3.8.0, issue #900). Blind-patching the local export would REGRESS the live worker. Correct fix is repo-mirror reconciliation first. Filed as agent_issue #902. |
+
+**Honesty invariant re-verified:** `objectives` still 2 active at version 1 (mission + objective-function) after the value-review — the terminal objective was never mutated.
