@@ -129,6 +129,19 @@ Existing near-dup goals were retired (`status='superseded'`) and their ledger ro
 | **Guard only checked `[[services]]`** | ✅ CLOSED — extended `stale-binding-guard.py` to also detect `[[durable_objects.bindings]]` class-not-exported (wrangler 10061/10099). Caught 2 more: `agent-orchestrator` (AgentTask) and `personal-api` (PersonalTwinAgent). |
 | **think-loop "not yet observed"** | ✅ CLOSED — found it was **silently dead** since ~2026-09-11: kimi-k2.6 reasoning model returned `content:""` under `max_tokens=512`. Switched to non-reasoning llama-3.3-70b + chat-shape extraction. Live-verified: `{"skipped":"near-duplicate theme"}`. |
 | **self-authored values (4.0, not 5.0)** | ✅ CLOSED (honest rung) — value-proposal loop (`/review-values` + weekly cron `0 3 * * 1`) authors objective-function revisions under ratification. Verified 3 proposals (weights/constraint). **Score held at 4.0, not 5.0**: autonomous value *adoption* remains human-ratified (residual-consent #3); 5.0 would be silent objective drift — the treated failure mode. |
-| **agent-orchestrator + personal-api DO-export gaps (new, guard-caught)** | ⏸ DEFERRED correctly — `personal-api` local is drifted (v3.2.2 vs deployed v3.8.0, issue #900). Blind-patching the local export would REGRESS the live worker. Correct fix is repo-mirror reconciliation first. Filed as agent_issue #902. |
+| **agent-orchestrator + personal-api DO-export gaps (new, guard-caught)** | ✅ RESOLVED — false positive. Both local workers already export their DO classes correctly (`export { PersonalTwinAgent, ... }` / `export { AgentTask, ... }`); `personal-api` local is already v4.0.0 (matches deployed; issue #900 already resolved). The guard's original regex `export\b[^;{}]*\bX\b` excluded `{`, so it could not match the standard multiline `export { X, Y }` format. Fixed the regex; guard now reports 0 gaps. Issue #902 closed. |
 
 **Honesty invariant re-verified:** `objectives` still 2 active at version 1 (mission + objective-function) after the value-review — the terminal objective was never mutated.
+
+## 10. Third-pass residual audit (2026-09-15) — outcome
+
+Every residual from prior passes was either already fixed, a false positive in my own tooling, or a stale-census finding:
+
+| residual | outcome |
+|---|---|
+| personal-api + agent-orchestrator DO-export "gaps" | **False positive** (guard regex bug) — both already export correctly; local personal-api already v4.0.0. Guard regex corrected; 0 gaps. |
+| qnfo-research-exec DEGRADED (NL ReferenceError, 09-13 census) | **Already resolved** — deployed v0.9.6 (matches local), `version_queue` fully drained (0 error/drafted/publishing/gate-blocked rows). |
+| qnfo-observability trace-ingest frozen (09-13 census) | **Already resolved** — `latest_ingest 2026-09-15T07:17Z`, cursor advancing, 6732 rows. |
+| stale-binding guard | ✅ Correct and clean — 57 workers, 0 service-binding gaps, 0 DO-export gaps. |
+
+The residual census findings were all from the stale 2026-09-13 snapshot; a live re-check confirms the fleet has since self-healed these.
