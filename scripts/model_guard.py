@@ -36,6 +36,7 @@ CANON_PARAM = {
                           "contextWindow": 1048576, "maxOutput": 393216},
 }
 OPS_HOST_MARK = "qnfo-ops.q08.workers.dev"
+OPS_HOST_MARK_NEW = "ops.qnfo.org"  # new bot-protection-bypass domain (2026-09-15)
 
 def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -149,7 +150,7 @@ def client_store(providers):
     """Return (provider_dict, drift_list) for the ops-endpoint provider inside a providers map."""
     for pid, pv in providers.items():
         host = str(pv.get("apiHost") or "")
-        if OPS_HOST_MARK in host:
+        if OPS_HOST_MARK in host or OPS_HOST_MARK_NEW in host:
             drift = []
             for m in pv.get("models") or []:
                 want = CANON_PARAM.get(m.get("modelId"))
@@ -181,7 +182,7 @@ def auto_candidate_paths():
                 if os.path.isfile(p) and os.path.getsize(p) < 5 * 1024 * 1024:
                     try:
                         txt = open(p, "r", encoding="utf-8", errors="ignore").read()
-                        if OPS_HOST_MARK in txt:
+                        if OPS_HOST_MARK in txt or OPS_HOST_MARK_NEW in txt:
                             paths.append(p)
                     except Exception:
                         pass
