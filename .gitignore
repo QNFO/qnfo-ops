@@ -1,0 +1,5 @@
+
+# wrangler/cache artifacts and compiled python (2026-09-16 hygiene)
+.wrangler/
+**/node_modules/.cache/
+scripts/__pycache__/
