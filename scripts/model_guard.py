@@ -2,7 +2,7 @@
 """model_guard.py v3 - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
 HARDEN-AND-MANDATE (user directive 2026-09-09, applied systemwide): the canonical ops-exec
 settings below are IMMUTABLE - no agent, session, or process may change them:
-  model key        : QNFO-OPS / ops-exec in ALL four DeepChat keys (DB + JSON)
+  model key        : QNFO-OPS / ops-frontier (GPT-5 frontier, tool_calls-capable) in ALL four DeepChat keys (DB + JSON)
   context window   : 1048576 (1M)   [DeepSeek source-truth ceiling]
   max output       : 393216 (384K)  [live probe valid range [1,393216]; 384000 accepted,
                                      500000 -> 400 invalid_request_error; MAX-OUT-393K-1]
@@ -27,14 +27,21 @@ JS = os.path.join(APP_DIR, "app-settings.json")
 CHATBOX = os.path.expandvars(r"%APPDATA%\xyz.chatboxapp.app\config.json")
 ROAM = os.path.expandvars(r"%APPDATA%")
 
-DESIRED_KEY = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}
+DESIRED_KEY = {"providerId": "QNFO-OPS", "modelId": "ops-frontier"}
 # parameter canon: DeepChat config_json keys (model_configs) + JSON contextWindow/maxOutput
 CANON_PARAM = {
     "ops-exec": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 3600000,
                  "contextWindow": 1048576, "maxOutput": 393216},
     "deepseek-v4-flash": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 3600000,
                           "contextWindow": 1048576, "maxOutput": 393216},
+    "ops-frontier": {"maxTokens": 128000, "contextLength": 400000, "timeout": 600000,
+                     "contextWindow": 400000, "maxOutput": 128000},
+    "ops-frontier-mini": {"maxTokens": 128000, "contextLength": 400000, "timeout": 600000,
+                          "contextWindow": 400000, "maxOutput": 128000},
+    "ops-frontier-reason": {"maxTokens": 100000, "contextLength": 200000, "timeout": 600000,
+                            "contextWindow": 200000, "maxOutput": 100000},
 }
+
 OPS_HOST_MARK = "qnfo-ops.q08.workers.dev"
 OPS_HOST_MARK_NEW = "ops.qnfo.org"  # new bot-protection-bypass domain (2026-09-15)
 

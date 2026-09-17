@@ -9,7 +9,7 @@ CANONICAL (immutable) ops-exec settings - qnfo-ops v2.9.1+:
               Workflow step.do timeout = "15 minutes"
   wrangler.toml : [limits] cpu_ms = 300000
   DeepChat (DB agent.db + Roaming app-settings.json) : defaultModel AND preferredModel =
-              QNFO-OPS/ops-exec; QNFO-OPS models ops-exec + deepseek-v4-flash ctx=1048576
+              QNFO-OPS/ops-frontier; QNFO-OPS models ops-exec + deepseek-v4-flash ctx=1048576
               maxOutput/maxTokens=393216 timeout=3600000
   ChatBox (Roaming/xyz.chatboxapp.app/config.json providers.qnfo-ops) : ops-exec +
               deepseek-v4-flash ctx=1048576 maxOutput=393216
@@ -25,7 +25,7 @@ Canonical source: QNFO/qnfo-ops/scripts/ops-settings-guard.py (mirror: .deepchat
 import json, os, re, sqlite3, sys, tempfile, datetime
 
 CTX, MAXOUT, TIMEOUT = 1048576, 393216, 3600000
-DESIRED_KEYS = {"providerId": "QNFO-OPS", "modelId": "ops-exec"}
+DESIRED_KEYS = {"providerId": "QNFO-OPS", "modelId": "ops-frontier"}  # FRONTIER-DEFAULT-1 (2026-09-17)
 CHECK_ONLY = "--check" in sys.argv[1:]
 
 HOME = os.path.expanduser("~")
