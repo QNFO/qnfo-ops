@@ -201,6 +201,68 @@ def auto_candidate_paths():
             seen.append(p)
     return seen
 
+# SESSION-PIN-SWEEP-1 (2026-09-18, canonical case: ops-exec toolCalls:0 recurrence):
+# DeepChat freezes provider_id/model_id PER-SESSION in deepchat_sessions at session-creation
+# time from whatever the 'deepchat' agent config was THEN. Fixing app_settings.defaultModel or
+# agents.config_json only affects NEW sessions - it does NOT retroactively repair already-open
+# sessions, which keep their frozen pin forever. This is the root mechanism behind repeated
+# "ops-exec still fails" reports even after the global default was corrected: the user's actual
+# open chat tabs never got the fix. NON_AGENTIC_MODELS = models proven (via AGENTIC-CANARY-1 on
+# qnfo-chat-canary) to NOT emit client tool_calls under QNFO-OPS; any session pinned to one of
+# these is silently broken for DeepChat's native agent loop and must be repaired. Only
+# QNFO-OPS/{NON_AGENTIC_MODELS} rows are touched - deliberate user picks of other providers
+# (anthropic/deepseek/etc.) are left alone; this fixes a proven-broken combination, not a
+# preference.
+NON_AGENTIC_MODELS = {"ops-exec"}
+
+def dc_sessions_drift(c):
+    try:
+        cols = [r[1] for r in c.execute("PRAGMA table_info(deepchat_sessions)")]
+    except Exception:
+        return []
+    if "provider_id" not in cols or "model_id" not in cols:
+        return []
+    qmarks = ",".join("?" * len(NON_AGENTIC_MODELS))
+    rows = c.execute(
+        "SELECT id, provider_id, model_id FROM deepchat_sessions WHERE provider_id='QNFO-OPS' AND model_id IN (%s)" % qmarks,
+        tuple(NON_AGENTIC_MODELS),
+    ).fetchall()
+    return [{"id": r[0], "provider_id": r[1], "model_id": r[2]} for r in rows]
+
+def dc_sessions_fix(c):
+    qmarks = ",".join("?" * len(NON_AGENTIC_MODELS))
+    c.execute(
+        "UPDATE deepchat_sessions SET provider_id=?, model_id=? WHERE provider_id='QNFO-OPS' AND model_id IN (%s)" % qmarks,
+        (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"]) + tuple(NON_AGENTIC_MODELS),
+    )
+
+
+# PROVIDER-MODELS-SWEEP-1 (2026-09-18): DeepChat's model PICKER reads provider_models
+# (source='provider', re-synced from the worker's /v1/models endpoint), NOT model_configs.
+# A model present in model_configs but absent from provider_models is INVISIBLE in the picker
+# ("there is no ops-frontier in DeepChat" canonical case). The worker must advertise these in
+# /v1/models, but this guard belt-and-suspenders them into provider_models every run so a
+# /v1/models regression cannot silently drop them again.
+FRONTIER_MODEL_IDS = ["ops-frontier", "ops-frontier-mini", "ops-frontier-reason"]
+
+def dc_provider_models_drift(c):
+    try:
+        cols = [r[1] for r in c.execute("PRAGMA table_info(provider_models)")]
+    except Exception:
+        return []
+    if "model_id" not in cols:
+        return []
+    present = set(r[0] for r in c.execute("SELECT model_id FROM provider_models WHERE provider_id='QNFO-OPS'").fetchall())
+    return [m for m in FRONTIER_MODEL_IDS if m not in present]
+
+def dc_provider_models_fix(c):
+    import json as _json
+    nowms = int(time.time() * 1000)
+    for i, mid in enumerate(FRONTIER_MODEL_IDS):
+        mj = _json.dumps({"id": mid, "name": mid, "group": "frontier", "providerId": "QNFO-OPS", "isCustom": False, "ownedBy": "qnfo"})
+        c.execute("INSERT OR REPLACE INTO provider_models (provider_id, model_id, source, name, group_name, sort_order, model_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                  ("QNFO-OPS", mid, "provider", mid, "frontier", 10 + i, mj, nowms, nowms))
+
 def main():
     out = {"ts": now(), "desired_key": DESIRED_KEY, "canon_params": CANON_PARAM, "stores": {}}
     rc = 0
@@ -223,7 +285,46 @@ def main():
             out["stores"]["deepchat_db"] = {"state": "error", "error": str(e)}; rc = 1
         finally:
             c.close()
-    # DeepChat JSON
+    # SESSION-PIN-SWEEP-1: per-session frozen model pins (deepchat_sessions), separate
+    # connection/commit from the app_settings pass above so a failure here never blocks it.
+    if os.path.exists(DB):
+        c = sqlite3.connect(DB, timeout=10)
+        try:
+            sb = dc_sessions_drift(c)
+            out["stores"]["deepchat_sessions"] = {"drift_before": sb}
+            if sb:
+                dc_sessions_fix(c); c.commit()
+                out["stores"]["deepchat_sessions"]["fixed"] = True
+            srb = dc_sessions_drift(c)
+            out["stores"]["deepchat_sessions"]["readback"] = srb
+            if srb:
+                out["stores"]["deepchat_sessions"]["state"] = "verify-failed"; rc = 2
+            else:
+                out["stores"]["deepchat_sessions"]["state"] = "fixed" if sb else "clean"
+        except Exception as e:
+            out["stores"]["deepchat_sessions"] = {"state": "error", "error": str(e)}; rc = 1
+        finally:
+            c.close()
+        # PROVIDER-MODELS-SWEEP-1: ensure frontier models remain in provider_models (the picker).
+    if os.path.exists(DB):
+        c = sqlite3.connect(DB, timeout=10)
+        try:
+            pb = dc_provider_models_drift(c)
+            out["stores"]["deepchat_provider_models"] = {"drift_before": pb}
+            if pb:
+                dc_provider_models_fix(c); c.commit()
+                out["stores"]["deepchat_provider_models"]["fixed"] = True
+            prb = dc_provider_models_drift(c)
+            out["stores"]["deepchat_provider_models"]["readback"] = prb
+            if prb:
+                out["stores"]["deepchat_provider_models"]["state"] = "verify-failed"; rc = 2
+            else:
+                out["stores"]["deepchat_provider_models"]["state"] = "fixed" if pb else "clean"
+        except Exception as e:
+            out["stores"]["deepchat_provider_models"] = {"state": "error", "error": str(e)}; rc = 1
+        finally:
+            c.close()
+# DeepChat JSON
     if os.path.exists(JS):
         try:
             d = jload(JS)
