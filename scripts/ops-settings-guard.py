@@ -19,12 +19,21 @@ CANONICAL (immutable) ops-exec settings - qnfo-ops v2.9.1+:
 
 Behavior: idempotent self-healing aligner (same as model_guard.py). Default (no --check)
 aligns any drift and read-backs. --check only reports (no writes) and exits 1 on drift.
-Exit codes: 0 = clean/aligned | 1 = drift and fix failed / drift in --check | 2 = check error.
+Exit codes: 0 = fully clean/aligned | 1 = ANY drift remains after the align pass (incl. non-alignable worker/doc drift) or drift in --check | 2 = check error.
 Canonical source: QNFO/qnfo-ops/scripts/ops-settings-guard.py (mirror: .deepchat/scripts).
 """
 import json, os, re, sqlite3, sys, tempfile, datetime
 
 CTX, MAXOUT, TIMEOUT = 1048576, 393216, 3600000
+# Per-model CLIENT-side canonical params (2026-09-18 coverage fix - OPS-SETTINGS-GUARD-DEFAULT-MODEL-GAP-1):
+# ops-frontier is the DEFAULT and carries its OWN limits (400000/128000/600000); the relay models keep 1048576/393216/3600000.
+MODEL_PARAMS = {
+    "ops-exec":          {"ctx": 1048576, "maxOut": 393216, "timeout": 3600000},
+    "deepseek-v4-flash": {"ctx": 1048576, "maxOut": 393216, "timeout": 3600000},
+    "ops-frontier":      {"ctx": 400000,  "maxOut": 128000, "timeout": 600000},
+}
+# Presence-required per the canonical docstring; other known models are validated only if listed.
+REQUIRED_MODELS = ("ops-exec", "deepseek-v4-flash")
 DESIRED_KEYS = {"providerId": "QNFO-OPS", "modelId": "ops-frontier"}  # FRONTIER-DEFAULT-1 (2026-09-17)
 CHECK_ONLY = "--check" in sys.argv[1:]
 
@@ -44,7 +53,7 @@ WORKER_REQS = [
     ("OPS_ANSWER_CAP default", r'"OPS_ANSWER_CAP", (\d+)', MAXOUT),
     ("relay maxOut clamp", r"clamp\(maxTokens, (\d+)\)", MAXOUT),
     ("MODEL_CTX", r"var MODEL_CTX = (\d+)", CTX),
-    ("OPS_LOOP_DEADLINE_MS", r"OPS_LOOP_DEADLINE_MS\", (\d+)", 300000),
+    ("OPS_LOOP_DEADLINE_MS", r"OPS_LOOP_DEADLINE_MS\", ([0-9.]+(?:e\+?\d+)?)", 300000),
 ]
 
 def now():
@@ -60,12 +69,15 @@ def problems():
         m = re.search(pat, src)
         if not m:
             p.append("worker " + label + ": missing")
-        elif int(m.group(1)) != want:
+        elif int(float(m.group(1))) != want:
             p.append("worker " + label + "=" + m.group(1) + " (want " + str(want) + ")")
     if 'timeout: "15 minutes"' not in src:
         p.append('worker Workflow step.do timeout missing "15 minutes"')
-    if 'var VERSION = "2.9.' not in src and 'var VERSION = "2.10.' not in src and 'var VERSION = "3.' not in src:
-        p.append("worker VERSION below 2.9.x (guard expects >= 2.9.1)")
+    vm = re.search(r'var VERSION\s*=\s*"(\d+)\.(\d+)\.(\d+)"', src)
+    if not vm:
+        p.append("worker VERSION: unparseable")
+    elif (int(vm.group(1)), int(vm.group(2)), int(vm.group(3))) < (2, 9, 0):
+        p.append("worker VERSION " + vm.group(0).split('"')[1] + " < 2.9.0 (guard expects >= 2.9.1)")
     try:
         t = open(WRANGLER, encoding="utf-8").read()
         m = re.search(r"cpu_ms = (\d+)", t)
@@ -97,20 +109,22 @@ def dc_db_drift(c):
             p.append("dc-db " + k + ": unparseable"); continue
         if v != DESIRED_KEYS:
             p.append("dc-db " + k + ": " + json.dumps(v))
-    for mid in ("ops-exec", "deepseek-v4-flash"):
+    for mid, mp in MODEL_PARAMS.items():
         row = c.execute("SELECT config_json FROM model_configs WHERE provider_id=? AND model_id=?",
                         ("QNFO-OPS", mid)).fetchone()
         if not row:
-            p.append("dc-db model_config QNFO-OPS/" + mid + ": missing"); continue
+            if mid in REQUIRED_MODELS:
+                p.append("dc-db model_config QNFO-OPS/" + mid + ": missing")
+            continue
         try:
             conf = json.loads(row[0]).get("config", {})
         except Exception:
             p.append("dc-db model_config QNFO-OPS/" + mid + ": unparseable"); continue
-        if int(conf.get("maxTokens") or 0) != MAXOUT:
+        if int(conf.get("maxTokens") or 0) != mp["maxOut"]:
             p.append("dc-db QNFO-OPS/" + mid + " maxTokens=" + str(conf.get("maxTokens")))
-        if int(conf.get("contextLength") or 0) != CTX:
+        if int(conf.get("contextLength") or 0) != mp["ctx"]:
             p.append("dc-db QNFO-OPS/" + mid + " ctx=" + str(conf.get("contextLength")))
-        if int(conf.get("timeout") or 0) < TIMEOUT:
+        if int(conf.get("timeout") or 0) < mp["timeout"]:
             p.append("dc-db QNFO-OPS/" + mid + " timeout=" + str(conf.get("timeout")))
     return p
 
@@ -123,13 +137,15 @@ def dc_json_drift(d):
     for pr in d.get("providers", []):
         if (pr.get("id") or "") == "QNFO-OPS":
             found = find_models(pr.get("models"))
-    for mid in ("ops-exec", "deepseek-v4-flash"):
+    for mid, mp in MODEL_PARAMS.items():
         m = found.get(mid)
         if not m:
-            p.append("dc-json QNFO-OPS/" + mid + ": missing"); continue
-        if int(m.get("maxOutput") or m.get("maxTokens") or 0) != MAXOUT:
+            if mid in REQUIRED_MODELS:
+                p.append("dc-json QNFO-OPS/" + mid + ": missing")
+            continue
+        if int(m.get("maxOutput") or m.get("maxTokens") or 0) != mp["maxOut"]:
             p.append("dc-json QNFO-OPS/" + mid + " maxOutput=" + str(m.get("maxOutput") or m.get("maxTokens")))
-        if int(m.get("contextWindow") or m.get("contextLength") or 0) != CTX:
+        if int(m.get("contextWindow") or m.get("contextLength") or 0) != mp["ctx"]:
             p.append("dc-json QNFO-OPS/" + mid + " ctx=" + str(m.get("contextWindow") or m.get("contextLength")))
     return p
 
@@ -139,13 +155,15 @@ def chatbox_drift(d):
     if not ops:
         return ["chatbox qnfo-ops provider: missing"]
     found = find_models(ops.get("models"))
-    for mid in ("ops-exec", "deepseek-v4-flash"):
+    for mid, mp in MODEL_PARAMS.items():
         m = found.get(mid)
         if not m:
-            p.append("chatbox qnfo-ops/" + mid + ": missing"); continue
-        if int(m.get("maxOutput") or 0) != MAXOUT:
+            if mid in REQUIRED_MODELS:
+                p.append("chatbox qnfo-ops/" + mid + ": missing")
+            continue
+        if int(m.get("maxOutput") or 0) != mp["maxOut"]:
             p.append("chatbox qnfo-ops/" + mid + " maxOutput=" + str(m.get("maxOutput")))
-        if int(m.get("contextWindow") or 0) != CTX:
+        if int(m.get("contextWindow") or 0) != mp["ctx"]:
             p.append("chatbox qnfo-ops/" + mid + " ctx=" + str(m.get("contextWindow")))
     return p
 
@@ -164,16 +182,16 @@ def align_dc_db(c, drift):
     for k in ("defaultModel", "preferredModel"):
         c.execute("UPDATE app_settings SET value_json=?, updated_at=? WHERE key=?",
                   (json.dumps(DESIRED_KEYS), now(), k))
-    for mid in ("ops-exec", "deepseek-v4-flash"):
+    for mid, mp in MODEL_PARAMS.items():
         row = c.execute("SELECT config_json FROM model_configs WHERE provider_id=? AND model_id=?",
                         ("QNFO-OPS", mid)).fetchone()
         if not row:
             continue
         obj = json.loads(row[0])
         conf = obj.get("config", {})
-        conf["maxTokens"] = MAXOUT
-        conf["contextLength"] = CTX
-        conf["timeout"] = TIMEOUT
+        conf["maxTokens"] = mp["maxOut"]
+        conf["contextLength"] = mp["ctx"]
+        conf["timeout"] = mp["timeout"]
         obj["config"] = conf
         c.execute("UPDATE model_configs SET config_json=?, updated_at=? WHERE provider_id=? AND model_id=?",
                   (json.dumps(obj), now(), "QNFO-OPS", mid))
@@ -184,16 +202,16 @@ def align_dc_json(d):
     for pr in d.get("providers", []):
         if (pr.get("id") or "") == "QNFO-OPS":
             for m in pr.get("models", []):
-                if model_id(m) in ("ops-exec", "deepseek-v4-flash"):
-                    m["maxOutput"] = MAXOUT
-                    m["contextWindow"] = CTX
+                if model_id(m) in MODEL_PARAMS:
+                    m["maxOutput"] = MODEL_PARAMS[model_id(m)]["maxOut"]
+                    m["contextWindow"] = MODEL_PARAMS[model_id(m)]["ctx"]
 
 def align_chatbox(d):
     ops = (d.get("settings", {}).get("providers", {}) or {}).get("qnfo-ops", {})
     for m in ops.get("models", []):
-        if model_id(m) in ("ops-exec", "deepseek-v4-flash"):
-            m["maxOutput"] = MAXOUT
-            m["contextWindow"] = CTX
+        if model_id(m) in MODEL_PARAMS:
+            m["maxOutput"] = MODEL_PARAMS[model_id(m)]["maxOut"]
+            m["contextWindow"] = MODEL_PARAMS[model_id(m)]["ctx"]
 
 def atomic_write(path, obj):
     d = os.path.dirname(path)
@@ -245,13 +263,16 @@ def main():
     except Exception as e:
         dbc.close(); res["state"] = "chatbox-fix-failed"; res["error"] = str(e); print(json.dumps(res)); return 1
     rb = []
+    rb += problems()
     rb += dc_db_drift(dbc)
     d2 = json.load(open(DC_JSON, encoding="utf-8")); rb += dc_json_drift(d2)
     cb2 = json.load(open(CB_JSON, encoding="utf-8")); rb += chatbox_drift(cb2)
+    rb += docs_drift()
     dbc.close()
     res["readback_drift"] = rb
     if rb:
-        res["state"] = "fix-verify-failed"; print(json.dumps(res)); return 1
+        res["state"] = "drift-remaining"; res["unresolved"] = rb
+        print(json.dumps(res)); return 1
     res["state"] = "aligned"
     print(json.dumps(res)); return 0
 
