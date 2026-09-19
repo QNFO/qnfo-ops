@@ -51,7 +51,7 @@ DOC_CHECK = [
 WORKER_REQS = [
     ("DEFAULT_MAX_OUT", r"var DEFAULT_MAX_OUT = (\d+)", MAXOUT),
     ("OPS_ANSWER_CAP default", r'"OPS_ANSWER_CAP", (\d+)', MAXOUT),
-    ("relay maxOut clamp", r"clamp\(maxTokens, (\d+)\)", MAXOUT),
+    ("relay maxOut clamp", r"clamp\(maxTokens, (393216)\)", MAXOUT),
     ("MODEL_CTX", r"var MODEL_CTX = (\d+)", CTX),
     ("OPS_LOOP_DEADLINE_MS", r"OPS_LOOP_DEADLINE_MS\", ([0-9.]+(?:e\+?\d+)?)", 300000),
 ]
