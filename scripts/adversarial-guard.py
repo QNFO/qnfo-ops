@@ -38,6 +38,11 @@ dodmiss = [e.get("name") for e in tpl if DOD_MARKER not in (e.get("content") or 
 check(not dodmiss, f"templates: {len(tpl)} entries, {len(dodmiss)} missing DOD-AUDIT (Definition-of-Done audit) line"
       + ("" if not dodmiss else " -> " + ", ".join(dodmiss)))
 
+PLAN_MARKER = "update_plan"
+planmiss = [e.get("name") for e in tpl if PLAN_MARKER not in (e.get("content") or "")]
+check(not planmiss, f"templates: {len(tpl)} entries, {len(planmiss)} missing update_plan requirement"
+      + ("" if not planmiss else " -> " + ", ".join(planmiss)))
+
 check(SYS_MARKER in open(SYSPROMPT, encoding="utf-8").read(), "system prompt carries ADVERSARIAL-REASONING-1")
 
 for w in CORE_WORKERS:
