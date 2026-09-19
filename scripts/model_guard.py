@@ -314,6 +314,39 @@ def dc_sessions_fix(c):
         (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"]) + tuple(NON_AGENTIC_MODELS) + tuple(BROKEN_PROVIDERS),
     )
 
+# SESSION-PIN-CENSUS-1 (2026-09-19, canonical case: session ptR3pIaDrDOJDVcwSmDlb reverted to
+# deepseek/deepseek-v4-flash after a one-off manual UPDATE; guard then reported
+# deepchat_sessions.state="clean" because BROKEN_PROVIDERS is the no-op sentinel {"__disabled__"}).
+# The sweep above deliberately repairs ONLY proven-broken combinations (direct-deepseek is an
+# allowed gateway fallback per the 2026-09-19 directive), so a session on any other provider is
+# left intact BY POLICY. That is fine - but the guard must NOT then report an unqualified "clean".
+# This read-only census makes the residual pins VISIBLE in every run so "clean" can never hide
+# them (DETECTION-NOT-REMEDIATION-1 / FILING-NOT-FIXING-1: a detector that hides what it chose not
+# to repair is a false negative). It repairs nothing and never changes rc.
+def dc_sessions_census(c):
+    try:
+        rows = c.execute(
+            "SELECT provider_id, model_id, COUNT(*) FROM deepchat_sessions GROUP BY 1,2"
+        ).fetchall()
+    except Exception:
+        return {}
+    by_pin = {"%s/%s" % (p, m): n for p, m, n in rows}
+    desired = "%s/%s" % (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"])
+    # Residual = sessions NOT on the desired key AND NOT on the QNFO-OPS server-side-executor
+    # provider. These run DeepChat's CLIENT tool loop instead of the server-side executor
+    # (SERVER-SIDE-EXEC-100-1). Direct deepseek is an allowed fallback, so they are surfaced,
+    # never silently rewritten.
+    residual = {
+        k: v for k, v in by_pin.items()
+        if k != desired and not k.startswith("QNFO-OPS/")
+    }
+    return {
+        "total": sum(by_pin.values()),
+        "by_pin": by_pin,
+        "not_desired_key": {k: v for k, v in by_pin.items() if k != desired},
+        "residual_off_server_side": residual,
+    }
+
 # AGENT-MODEL-SWEEP-1 (2026-09-19): the 6th/7th model-key locations. agents.config_json holds
 # model / assistantModel / defaultModelPreset, which DeepChat copies into deepchat_sessions AT
 # SESSION CREATION. Sweeping app_settings.defaultModel alone is necessary but NOT sufficient: a
@@ -441,6 +474,8 @@ def main():
                 out["stores"]["deepchat_sessions"]["state"] = "verify-failed"; rc = 2
             else:
                 out["stores"]["deepchat_sessions"]["state"] = "fixed" if sb else "clean"
+            # SESSION-PIN-CENSUS-1: read-only visibility of residual (by-policy) pins.
+            out["stores"]["deepchat_sessions"]["census"] = dc_sessions_census(c)
         except Exception as e:
             out["stores"]["deepchat_sessions"] = {"state": "error", "error": str(e)}; rc = 1
         finally:
