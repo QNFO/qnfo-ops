@@ -43,6 +43,10 @@ planmiss = [e.get("name") for e in tpl if PLAN_MARKER not in (e.get("content") o
 check(not planmiss, f"templates: {len(tpl)} entries, {len(planmiss)} missing update_plan requirement"
       + ("" if not planmiss else " -> " + ", ".join(planmiss)))
 
+DEPLOY_MARKER = "SERVER-SIDE-DEPLOY-1"
+dep_entries = [e for e in tpl if (e.get("name") or "") == "CMD DEPLOY"]
+DEPLOY_OK = bool(dep_entries) and all(DEPLOY_MARKER in (e.get("content") or "") and "/ops/deploy" in (e.get("content") or "") for e in dep_entries)
+check(DEPLOY_OK, "templates: CMD DEPLOY carries SERVER-SIDE-DEPLOY-1 (server-side deploy route) + /ops/deploy")
 check(SYS_MARKER in open(SYSPROMPT, encoding="utf-8").read(), "system prompt carries ADVERSARIAL-REASONING-1")
 
 for w in CORE_WORKERS:
