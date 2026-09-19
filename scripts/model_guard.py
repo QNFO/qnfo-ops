@@ -215,6 +215,16 @@ def auto_candidate_paths():
 # preference.
 NON_AGENTIC_MODELS = {"ops-exec"}
 
+# SESSION-PIN-SWEEP-2 (2026-09-19, canonical case: 195/214 sessions pinned to the DIRECT
+# deepseek provider -> DeepChat runs its own CLIENT tool loop -> local exec/run_code fail
+# ("Session not running") -> run ends provider_error). ROOT-CAUSE-1: the 'deepchat' agent's
+# config_json.model carried {"providerId":"deepseek"}, pinning EVERY new session to the direct
+# DeepSeek API and bypassing the server-side executor (SERVER-SIDE-EXEC-100-1). SESSION-PIN-
+# SWEEP-1 left these alone as "deliberate user picks" - wrong: they are the residue of the
+# agent default, i.e. a proven-broken combination, not a preference. BROKEN_PROVIDERS is the
+# allowlist of providers with no server-side executor path.
+BROKEN_PROVIDERS = {"deepseek"}
+
 def dc_sessions_drift(c):
     try:
         cols = [r[1] for r in c.execute("PRAGMA table_info(deepchat_sessions)")]
@@ -223,18 +233,65 @@ def dc_sessions_drift(c):
     if "provider_id" not in cols or "model_id" not in cols:
         return []
     qmarks = ",".join("?" * len(NON_AGENTIC_MODELS))
+    bp = ",".join("?" * len(BROKEN_PROVIDERS))
     rows = c.execute(
-        "SELECT id, provider_id, model_id FROM deepchat_sessions WHERE provider_id='QNFO-OPS' AND model_id IN (%s)" % qmarks,
-        tuple(NON_AGENTIC_MODELS),
+        "SELECT id, provider_id, model_id FROM deepchat_sessions "
+        "WHERE (provider_id='QNFO-OPS' AND model_id IN (%s)) OR provider_id IN (%s)" % (qmarks, bp),
+        tuple(NON_AGENTIC_MODELS) + tuple(BROKEN_PROVIDERS),
     ).fetchall()
     return [{"id": r[0], "provider_id": r[1], "model_id": r[2]} for r in rows]
 
 def dc_sessions_fix(c):
     qmarks = ",".join("?" * len(NON_AGENTIC_MODELS))
+    bp = ",".join("?" * len(BROKEN_PROVIDERS))
     c.execute(
-        "UPDATE deepchat_sessions SET provider_id=?, model_id=? WHERE provider_id='QNFO-OPS' AND model_id IN (%s)" % qmarks,
-        (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"]) + tuple(NON_AGENTIC_MODELS),
+        "UPDATE deepchat_sessions SET provider_id=?, model_id=? "
+        "WHERE (provider_id='QNFO-OPS' AND model_id IN (%s)) OR provider_id IN (%s)" % (qmarks, bp),
+        (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"]) + tuple(NON_AGENTIC_MODELS) + tuple(BROKEN_PROVIDERS),
     )
+
+# AGENT-MODEL-SWEEP-1 (2026-09-19): the 6th/7th model-key locations. agents.config_json holds
+# model / assistantModel / defaultModelPreset, which DeepChat copies into deepchat_sessions AT
+# SESSION CREATION. Sweeping app_settings.defaultModel alone is necessary but NOT sufficient: a
+# deepseek ref here re-pins every new session and silently re-creates SESSION-PIN-SWEEP-2.
+AGENT_MODEL_KEYS = ("model", "assistantModel", "defaultModelPreset")
+
+def dc_agents_drift(c):
+    bad = []
+    try:
+        rows = c.execute("SELECT id, config_json FROM agents").fetchall()
+    except Exception:
+        return []
+    for aid, cfg in rows:
+        if not cfg:
+            continue
+        try:
+            o = json.loads(cfg)
+        except Exception:
+            continue
+        for k in AGENT_MODEL_KEYS:
+            v = o.get(k)
+            if isinstance(v, dict) and v.get("providerId") in BROKEN_PROVIDERS:
+                bad.append({"agent": aid, "key": k, "value": v})
+    return bad
+
+def dc_agents_fix(c):
+    for aid, cfg in c.execute("SELECT id, config_json FROM agents").fetchall():
+        if not cfg:
+            continue
+        try:
+            o = json.loads(cfg)
+        except Exception:
+            continue
+        changed = False
+        for k in AGENT_MODEL_KEYS:
+            v = o.get(k)
+            if isinstance(v, dict) and v.get("providerId") in BROKEN_PROVIDERS:
+                o[k] = {"providerId": "QNFO-OPS", "modelId": "ops-exec" if aid == "ops" else DESIRED_KEY["modelId"]}
+                changed = True
+        if changed:
+            c.execute("UPDATE agents SET config_json=?, updated_at=? WHERE id=?",
+                      (json.dumps(o, ensure_ascii=False), now(), aid))
 
 
 # PROVIDER-MODELS-SWEEP-1 (2026-09-18): DeepChat's model PICKER reads provider_models
@@ -303,6 +360,25 @@ def main():
                 out["stores"]["deepchat_sessions"]["state"] = "fixed" if sb else "clean"
         except Exception as e:
             out["stores"]["deepchat_sessions"] = {"state": "error", "error": str(e)}; rc = 1
+        finally:
+            c.close()
+    # AGENT-MODEL-SWEEP-1: agents.config_json model keys (the source of new-session pins).
+    if os.path.exists(DB):
+        c = sqlite3.connect(DB, timeout=10)
+        try:
+            ab = dc_agents_drift(c)
+            out["stores"]["deepchat_agents"] = {"drift_before": ab}
+            if ab:
+                dc_agents_fix(c); c.commit()
+                out["stores"]["deepchat_agents"]["fixed"] = True
+            arb = dc_agents_drift(c)
+            out["stores"]["deepchat_agents"]["readback"] = arb
+            if arb:
+                out["stores"]["deepchat_agents"]["state"] = "verify-failed"; rc = 2
+            else:
+                out["stores"]["deepchat_agents"]["state"] = "fixed" if ab else "clean"
+        except Exception as e:
+            out["stores"]["deepchat_agents"] = {"state": "error", "error": str(e)}; rc = 1
         finally:
             c.close()
         # PROVIDER-MODELS-SWEEP-1: ensure frontier models remain in provider_models (the picker).
