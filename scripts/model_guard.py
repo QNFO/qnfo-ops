@@ -28,6 +28,11 @@ CHATBOX = os.path.expandvars(r"%APPDATA%\xyz.chatboxapp.app\config.json")
 ROAM = os.path.expandvars(r"%APPDATA%")
 
 DESIRED_KEY = {"providerId": "AI-GATEWAY", "modelId": "openai/gpt-4.1"}  # 2026-09-19 user directive: /ai/v1 universal gateway endpoint (openai/gpt-4.1), deprecate QNFO-OPS custom worker + Workers AI
+
+# SESSION-DESIRED-KEY (2026-09-19 user directive): the per-SESSION executor is QNFO-OPS/ops-frontier --
+# the fleet's SERVER-SIDE agent loop and the 'deepchat' agent-config value. DESIRED_KEY above is the
+# app_settings PICKER default only; every session must run on a server-side executor (SERVER-SIDE-EXEC-100-1).
+SESSION_KEY = {"providerId": "QNFO-OPS", "modelId": "ops-frontier"}
 # parameter canon: DeepChat config_json keys (model_configs) + JSON contextWindow/maxOutput
 CANON_PARAM = {
     "ops-exec": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 3600000,
@@ -279,7 +284,7 @@ NON_AGENTIC_MODELS = {"ops-exec"}
 # SWEEP-1 left these alone as "deliberate user picks" - wrong: they are the residue of the
 # agent default, i.e. a proven-broken combination, not a preference. BROKEN_PROVIDERS is the
 # allowlist of providers with no server-side executor path.
-BROKEN_PROVIDERS = {"__disabled__"}  # 2026-09-19 "Both: fix+fallback" user directive: direct deepseek ALLOWED as gateway fallback; sentinel keeps sweep SQL valid while repairing nothing. DESIRED_KEY still pins DEFAULT to ops-frontier.
+BROKEN_PROVIDERS = {"deepseek", "anthropic"}  # 2026-09-19 user directive: direct deepseek AND anthropic pins have NO server-side executor -> DeepChat runs its own CLIENT tool loop (SERVER-SIDE-EXEC-100-1 violation) -> rewrite to SESSION_KEY (ops-frontier) and KEEP them there (durability; supersedes the earlier "direct deepseek allowed as fallback" sentinel). Canonical case: ptR3pIaDrDOJDVcwSmDlb reverted to deepseek-v4-flash after a one-off manual UPDATE that had no re-probe.
 
 # NON-TOOL-MODELS-1 (2026-09-19, user directive "apply C for true server-side tool execution"):
 # ops-exec/ops-frontier/-mini/-reason run a PURE SERVER-SIDE agent loop and emit NO client
@@ -311,7 +316,7 @@ def dc_sessions_fix(c):
     c.execute(
         "UPDATE deepchat_sessions SET provider_id=?, model_id=? "
         "WHERE (provider_id='QNFO-OPS' AND model_id IN (%s)) OR provider_id IN (%s)" % (qmarks, bp),
-        (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"]) + tuple(NON_AGENTIC_MODELS) + tuple(BROKEN_PROVIDERS),
+        (SESSION_KEY["providerId"], SESSION_KEY["modelId"]) + tuple(NON_AGENTIC_MODELS) + tuple(BROKEN_PROVIDERS),
     )
 
 # SESSION-PIN-CENSUS-1 (2026-09-19, canonical case: session ptR3pIaDrDOJDVcwSmDlb reverted to
@@ -331,7 +336,7 @@ def dc_sessions_census(c):
     except Exception:
         return {}
     by_pin = {"%s/%s" % (p, m): n for p, m, n in rows}
-    desired = "%s/%s" % (DESIRED_KEY["providerId"], DESIRED_KEY["modelId"])
+    desired = "%s/%s" % (SESSION_KEY["providerId"], SESSION_KEY["modelId"])
     # Residual = sessions NOT on the desired key AND NOT on the QNFO-OPS server-side-executor
     # provider. These run DeepChat's CLIENT tool loop instead of the server-side executor
     # (SERVER-SIDE-EXEC-100-1). Direct deepseek is an allowed fallback, so they are surfaced,
