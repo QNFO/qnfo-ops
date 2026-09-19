@@ -27,7 +27,7 @@ JS = os.path.join(APP_DIR, "app-settings.json")
 CHATBOX = os.path.expandvars(r"%APPDATA%\xyz.chatboxapp.app\config.json")
 ROAM = os.path.expandvars(r"%APPDATA%")
 
-DESIRED_KEY = {"providerId": "QNFO-OPS", "modelId": "ops-frontier"}
+DESIRED_KEY = {"providerId": "AI-GATEWAY", "modelId": "openai/gpt-4.1"}  # 2026-09-19 user directive: /ai/v1 universal gateway endpoint (openai/gpt-4.1), deprecate QNFO-OPS custom worker + Workers AI
 # parameter canon: DeepChat config_json keys (model_configs) + JSON contextWindow/maxOutput
 CANON_PARAM = {
     "ops-exec": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 3600000,
@@ -120,6 +120,62 @@ def dc_db_fix(c):
         if dirty:
             c.execute("UPDATE model_configs SET config_json=?, updated_at=? WHERE cache_key=?",
                       (json.dumps(obj, ensure_ascii=False), ms(), ck))
+
+# NON-TOOL-MODELS-1: pin functionCall=False for the server-side loop models (DeepChat agent flag).
+def dc_functioncall_drift(c):
+    drift = []
+    rows = c.execute("SELECT cache_key, config_json FROM model_configs WHERE provider_id='QNFO-OPS'").fetchall()
+    for ck, cj in rows:
+        mid = ck.split("-_-")[-1] if "-_-" in ck else ""
+        if mid not in NON_TOOL_MODELS:
+            continue
+        try:
+            obj = json.loads(cj)
+        except Exception:
+            drift.append(ck + ":unparseable"); continue
+        cfg = obj.get("config") if isinstance(obj, dict) else None
+        if not isinstance(cfg, dict):
+            drift.append(ck + ":no-config"); continue
+        if cfg.get("functionCall") is not False:
+            drift.append(ck + ":functionCall=" + str(cfg.get("functionCall")))
+    return drift
+
+def dc_functioncall_fix(c):
+    rows = c.execute("SELECT cache_key, config_json FROM model_configs WHERE provider_id='QNFO-OPS'").fetchall()
+    for ck, cj in rows:
+        mid = ck.split("-_-")[-1] if "-_-" in ck else ""
+        if mid not in NON_TOOL_MODELS:
+            continue
+        try:
+            obj = json.loads(cj)
+        except Exception:
+            continue
+        if not isinstance(obj, dict) or not isinstance(obj.get("config"), dict):
+            continue
+        if obj["config"].get("functionCall") is not False:
+            obj["config"]["functionCall"] = False
+            c.execute("UPDATE model_configs SET config_json=?, updated_at=? WHERE cache_key=?",
+                      (json.dumps(obj, ensure_ascii=False), ms(), ck))
+
+def dc_js_functioncall_drift(d):
+    drift = []
+    for pr in d.get("providers") or []:
+        if (pr.get("id") or pr.get("providerId") or "") != "QNFO-OPS":
+            continue
+        for m in pr.get("models") or []:
+            if (m.get("modelId") or m.get("id")) in NON_TOOL_MODELS and isinstance(m.get("capabilities"), list):
+                if "tool_use" in m["capabilities"]:
+                    drift.append("json:QNFO-OPS/" + str(m.get("modelId")) + ":capabilities has tool_use")
+    return drift
+
+def dc_js_functioncall_fix(d):
+    for pr in d.get("providers") or []:
+        if (pr.get("id") or pr.get("providerId") or "") != "QNFO-OPS":
+            continue
+        for m in pr.get("models") or []:
+            if (m.get("modelId") or m.get("id")) in NON_TOOL_MODELS and isinstance(m.get("capabilities"), list):
+                if "tool_use" in m["capabilities"]:
+                    m["capabilities"] = [x for x in m["capabilities"] if x != "tool_use"]
 
 # ---------------- DeepChat JSON ----------------
 def dc_js_drift(d):
@@ -223,7 +279,15 @@ NON_AGENTIC_MODELS = {"ops-exec"}
 # SWEEP-1 left these alone as "deliberate user picks" - wrong: they are the residue of the
 # agent default, i.e. a proven-broken combination, not a preference. BROKEN_PROVIDERS is the
 # allowlist of providers with no server-side executor path.
-BROKEN_PROVIDERS = {"deepseek"}
+BROKEN_PROVIDERS = {"__disabled__"}  # 2026-09-19 "Both: fix+fallback" user directive: direct deepseek ALLOWED as gateway fallback; sentinel keeps sweep SQL valid while repairing nothing. DESIRED_KEY still pins DEFAULT to ops-frontier.
+
+# NON-TOOL-MODELS-1 (2026-09-19, user directive "apply C for true server-side tool execution"):
+# ops-exec/ops-frontier/-mini/-reason run a PURE SERVER-SIDE agent loop and emit NO client
+# tool_calls. DeepChat must treat them as non-tool (model_configs config.functionCall=False) so its
+# client agent layer does NOT enable tool-mode and wait for tool_calls that never arrive (which
+# surfaced as "Request failed"). With functionCall=False DeepChat sends a plain chat request, the
+# worker runs its full server-side tool loop (gpt-5.5), and returns the final answer text.
+NON_TOOL_MODELS = {"ops-exec", "ops-frontier", "ops-frontier-mini", "ops-frontier-reason"}
 
 def dc_sessions_drift(c):
     try:
@@ -342,6 +406,25 @@ def main():
             out["stores"]["deepchat_db"] = {"state": "error", "error": str(e)}; rc = 1
         finally:
             c.close()
+    # NON-TOOL-MODELS-1: functionCall=False pin for server-side-loop models.
+    if os.path.exists(DB):
+        c = sqlite3.connect(DB, timeout=10)
+        try:
+            fb = dc_functioncall_drift(c)
+            out["stores"]["deepchat_functioncall"] = {"drift_before": fb}
+            if fb:
+                dc_functioncall_fix(c); c.commit()
+                out["stores"]["deepchat_functioncall"]["fixed"] = True
+            frb = dc_functioncall_drift(c)
+            out["stores"]["deepchat_functioncall"]["readback"] = frb
+            if frb:
+                out["stores"]["deepchat_functioncall"]["state"] = "verify-failed"; rc = 2
+            else:
+                out["stores"]["deepchat_functioncall"]["state"] = "fixed" if fb else "clean"
+        except Exception as e:
+            out["stores"]["deepchat_functioncall"] = {"state": "error", "error": str(e)}; rc = 1
+        finally:
+            c.close()
     # SESSION-PIN-SWEEP-1: per-session frozen model pins (deepchat_sessions), separate
     # connection/commit from the app_settings pass above so a failure here never blocks it.
     if os.path.exists(DB):
@@ -416,6 +499,22 @@ def main():
             if rb: rc = 2
         except Exception as e:
             out["stores"]["deepchat_json"] = {"state": "error", "error": str(e)}; rc = 1
+    # NON-TOOL-MODELS-1: app-settings.json capability mirror (drop tool_use).
+    if os.path.exists(JS):
+        try:
+            d = jload(JS)
+            fb = dc_js_functioncall_drift(d)
+            out["stores"]["deepchat_json_functioncall"] = {"drift_before": fb}
+            if fb:
+                dc_js_functioncall_fix(d)
+                atomic_json(JS, d)
+                out["stores"]["deepchat_json_functioncall"]["fixed"] = True
+            frb = dc_js_functioncall_drift(jload(JS))
+            out["stores"]["deepchat_json_functioncall"]["readback"] = frb
+            out["stores"]["deepchat_json_functioncall"]["state"] = "verify-failed" if frb else ("fixed" if fb else "clean")
+            if frb: rc = 2
+        except Exception as e:
+            out["stores"]["deepchat_json_functioncall"] = {"state": "error", "error": str(e)}; rc = 1
     # generic client stores (ChatBox + auto-discovered, incl future SANNABOT)
     discovered = []
     for p in auto_candidate_paths():
