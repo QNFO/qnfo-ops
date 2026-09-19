@@ -21,6 +21,10 @@ DEFAULT_PATHS = {
     "script": r"C:\Users\LENOVO\.deepchat\scripts\customPrompts-canonical.json",
     "roaming_cp_file": r"C:\Users\LENOVO\AppData\Roaming\DeepChat\custom_prompts.json",
     "roaming_db": r"C:\Users\LENOVO\AppData\Roaming\DeepChat\app_db\agent.db",
+    # orphan canonical mirrors (2026-09-19): were stale/unmonitored cruft (3/11 update_plan);
+    # now synced + swept for drift so they can never silently diverge again.
+    "repo_skills_canon": r"C:\Users\LENOVO\Documents\GitHub\qnfo-skills\prompt-stores\customPrompts-canonical.json",
+    "deepchat_skills_canon": r"C:\Users\LENOVO\.deepchat\skills\prompt-stores\customPrompts-canonical.json",
 }
 SRC_ENUM = {"local", "imported", "builtin"}
 EXPECTED_IDS = ["1788197658524-RX0DE2xA", "1788197658524-RVSnJFyP", "1788197658524-2Qgtf6l6", "1788197658524-FwEKzK59", "1788197658524-2R2NP0B9", "1788197658524-CzhqBs5V", "1788197658524-hQdwK4UR",  "1788197658524-3KUDUZ2Z", "1788197658524-NmxnpZvx", "1788197658524-TWLRZ2gs", "1788197658524-fVj3nerc"]
