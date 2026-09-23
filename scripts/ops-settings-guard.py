@@ -73,11 +73,11 @@ def problems():
             p.append("worker " + label + "=" + m.group(1) + " (want " + str(want) + ")")
     if 'timeout: "15 minutes"' not in src:
         p.append('worker Workflow step.do timeout missing "15 minutes"')
-    vm = re.search(r'var VERSION\s*=\s*"(\d+)\.(\d+)\.(\d+)"', src)
+    vm = re.search(r"(?:var|const|let)\s+VERSION\s*=\s*[\"'](\d+)\.(\d+)\.(\d+)", src)
     if not vm:
         p.append("worker VERSION: unparseable")
     elif (int(vm.group(1)), int(vm.group(2)), int(vm.group(3))) < (2, 9, 0):
-        p.append("worker VERSION " + vm.group(0).split('"')[1] + " < 2.9.0 (guard expects >= 2.9.1)")
+        p.append("worker VERSION " + ".".join(vm.group(1, 2, 3)) + " < 2.9.0 (guard expects >= 2.9.1)")
     try:
         t = open(WRANGLER, encoding="utf-8").read()
         m = re.search(r"cpu_ms = (\d+)", t)
