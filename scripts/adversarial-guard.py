@@ -49,8 +49,32 @@ DEPLOY_OK = bool(dep_entries) and all(DEPLOY_MARKER in (e.get("content") or "") 
 check(DEPLOY_OK, "templates: CMD DEPLOY carries SERVER-SIDE-DEPLOY-1 (server-side deploy route) + /ops/deploy")
 check(SYS_MARKER in open(SYSPROMPT, encoding="utf-8").read(), "system prompt carries ADVERSARIAL-REASONING-1")
 
-for w in CORE_WORKERS:
+def worker_artifact(w):
+    """Resolve the file that actually carries a worker prompt.
+
+    Prefer <w>/worker.js. Some workers keep only a REDACTION PLACEHOLDER there and ship
+    the real bundle as <w>/deployed-current.worker.js. Canonical: personal-api/worker.js
+    is 33 bytes containing <REDACTED - commit via ops agent>, while the live 175503-byte
+    bundle is personal-api/deployed-current.worker.js (VERSION 4.1.9-toolmode) and DOES
+    carry ADVERSARIAL-REASONING-1. Reading the placeholder produced a FALSE violation on
+    2026-09-24, which forced prompt-store-verify.py to exit 1 and blocked a closeout.
+    Falling back to the deployed artifact tests the code that is actually running.
+    """
     p = os.path.join(WORKERS_ROOT, w, "worker.js")
+    try:
+        sz = os.path.getsize(p)
+        with open(p, "rb") as f:
+            head = f.read(300)
+        if sz >= 512 and b"REDACTED" not in head:
+            return p
+    except OSError:
+        return p
+    alt = os.path.join(WORKERS_ROOT, w, "deployed-current.worker.js")
+    return alt if os.path.isfile(alt) else p
+
+
+for w in CORE_WORKERS:
+    p = worker_artifact(w)
     ok = os.path.exists(p) and SYS_MARKER in open(p, encoding="utf-8").read()
     check(ok, f"worker {w} carries ADVERSARIAL-REASONING-1")
 
@@ -59,7 +83,7 @@ if "--workers" in sys.argv:
     workers = sorted(os.path.basename(os.path.dirname(p))
                      for p in glob.glob(os.path.join(WORKERS_ROOT, "*", "worker.js")))
     for w in workers:
-        p = os.path.join(WORKERS_ROOT, w, "worker.js")
+        p = worker_artifact(w)
         s = open(p, encoding="utf-8").read()
         has_surface = (bool(re.search(r'role\s*:\s*["\x27]system', s)) or 'SYSTEM_PROMPT' in s
                        or 'DEFAULT_SYSTEM_PROMPT' in s or 'OPS_SYSTEM_PROMPT' in s or 'systemPrompt' in s)
