@@ -30,15 +30,40 @@ import atexit
 
 _LOCK = os.path.join(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp'), 'backup_deepchat.lock')
 
+def _pid_alive(pid: int) -> bool:
+    # BACKUP-STALE-LOCK-1 (2026-09-24): the lock stores the holder PID but the old
+    # _lock_held() used ONLY a 60-min mtime TTL, so a crash/kill (atexit not fired)
+    # blocked every backup for up to an hour. OpenProcess with
+    # PROCESS_QUERY_LIMITED_INFORMATION (0x1000) is the reliable Windows liveness
+    # probe: it returns NULL when the PID is gone (os.kill(pid,0) is unreliable).
+    if not pid or pid <= 0:
+        return False
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, int(pid))
+        if h:
+            k.CloseHandle(h)
+            return True
+        return False
+    except Exception:
+        return True  # cannot determine -> assume held (fail-closed)
+
+
 def _lock_held() -> bool:
-    # mtime-staleness lock: a run started less than 60 min ago means another
-    # backup is (or was very recently) active -> skip instead of queue/stick.
-    # Windows os.kill(pid, 0) is unreliable as a liveness probe, so use age.
+    # Held only while a LIVE holder owns the lock. A dead holder is reclaimed at once.
     try:
         if os.path.exists(_LOCK):
             age = time.time() - os.path.getmtime(_LOCK)
-            if age < 3600:
+            try:
+                pid = int((io.open(_LOCK, 'r').read().strip() or '0'))
+            except Exception:
+                pid = 0
+            live = _pid_alive(pid)
+            if age < 3600 and live:
                 return True
+            if age < 3600 and not live:
+                print('STALE LOCK reclaimed (holder pid ' + str(pid) + ' not alive)')
         with open(_LOCK, 'w') as f:
             f.write(str(os.getpid()))
         atexit.register(_lock_release)
@@ -140,7 +165,7 @@ def main():
         # BACKUP-DISK-LEAK-1 (2026-09-25): ALWAYS remove the db snapshot. os.remove(db_tmp)
         # previously sat INSIDE this try: block, so any exception before it (canonically
         # sqlite3.connect/backup raising OperationalError 'database or disk is full') skipped
-        # the removal and leaked a multi-GB snapshot into %TEMP%. 16 such files accumulated
+        # the removal and leaked a multi-GB snapshot into %TEMP%. 17 such files accumulated
         # from 2026-09-19 and filled C: to 97%, which then caused the very disk-full error
         # that skipped the cleanup - a self-reinforcing loop. finally: breaks it.
         if db_tmp and os.path.exists(db_tmp):
