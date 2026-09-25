@@ -25,7 +25,7 @@ PARTIAL (config-state ok, agent.db skipped with reason), or BACKUP ERROR (a
 config-state file failed). Exit 0 for OK/PARTIAL, 1 for ERROR/missing token.
 agent.db > limit is uploaded via backup_agentdb_chunked.py (<=90MB parts + manifest, same CLOUDFLARE_API_TOKEN).
 """
-import os, sys, json, time, io, shutil, urllib.request, urllib.error, sqlite3
+import os, sys, json, time, io, shutil, glob, urllib.request, urllib.error, sqlite3
 import atexit
 
 _LOCK = os.path.join(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp'), 'backup_deepchat.lock')
@@ -104,11 +104,32 @@ def upload(key, data):
         d = json.loads(r.read().decode('utf-8'))
     return d.get('success', False)
 
+def _sweep_orphan_snapshots():
+    # BACKUP-SNAPSHOT-ORPHAN-SWEEP-1 (2026-09-25): a hard kill (SIGKILL /
+    # TerminateProcess) never runs finally:, so an orphaned multi-GB
+    # agent-snapshot-* left in %TEMP% survives until the daily QNFO-Snapshot-Purge
+    # (03:00, AGE_HOURS=24) - up to ~7 GB/day. Sweeping at the start of every run
+    # bounds orphan residence to one backup interval.
+    _tmp = os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp')
+    _cutoff = time.time() - 3600
+    _n = 0
+    for _p in glob.glob(os.path.join(_tmp, 'agent-snapshot-*')):
+        try:
+            if os.path.getmtime(_p) < _cutoff:
+                os.remove(_p)
+                _n += 1
+        except Exception:
+            pass
+    if _n:
+        print('orphan snapshot sweep: removed ' + str(_n) + ' stale file(s)')
+
+
 def main():
     print('=== RUN ' + time.strftime('%Y-%m-%d %H:%M:%S') + ' ===')
     if _lock_held():
         print('SKIP: another backup instance is running (lock held)')
         return 0
+    _sweep_orphan_snapshots()
     if not TOKEN:
         print('BACKUP ERROR: CLOUDFLARE_API_TOKEN missing')
         return 1
