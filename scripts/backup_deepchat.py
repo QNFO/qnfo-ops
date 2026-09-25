@@ -134,10 +134,18 @@ def main():
                     db_skip_reason = f'agent.db ({size_mb} MB) HTTP 413 above R2 REST single-PUT limit; needs S3 multipart (creds not provisioned)'
                 else:
                     errors.append('agent.db: HTTP ' + str(he.code))
-        try: os.remove(db_tmp)
-        except Exception: pass
     except Exception as e:
         errors.append('agent.db: ' + type(e).__name__ + ' ' + str(e)[:150])
+    finally:
+        # BACKUP-DISK-LEAK-1 (2026-09-25): ALWAYS remove the db snapshot. os.remove(db_tmp)
+        # previously sat INSIDE this try: block, so any exception before it (canonically
+        # sqlite3.connect/backup raising OperationalError 'database or disk is full') skipped
+        # the removal and leaked a multi-GB snapshot into %TEMP%. 16 such files accumulated
+        # from 2026-09-19 and filled C: to 97%, which then caused the very disk-full error
+        # that skipped the cleanup - a self-reinforcing loop. finally: breaks it.
+        if db_tmp and os.path.exists(db_tmp):
+            try: os.remove(db_tmp)
+            except Exception: pass
     if db_skip_reason:
         skipped.append(db_skip_reason)
     # --- VERIFICATION GATE (wired 2026-09-12, PROMPT-PARITY-1) -----------------
