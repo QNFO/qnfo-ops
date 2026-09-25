@@ -196,6 +196,8 @@ def main():
     if not TOKEN:
         print('ERROR: CLOUDFLARE_API_TOKEN missing'); return 1
     db_src = os.path.join(ROAM, 'app_db', 'agent.db')
+    t1 = None
+    t2 = None
     try:
         # ---- MAIN SETTINGS BACKUP (retention-aware content prune + memory removed) ----
         t1 = snapshot(db_src, 'settings')
@@ -218,8 +220,8 @@ def main():
             removed, before, size, (100.0 * (before - size) / before) if before else 0), flush=True)
         sbytes, sparts, sok = upload_object(t1, PREFIX + STAMP + '/agent.db')
         print('agent.db settings backup: ' + ('OK' if sok else 'FAIL') + ' (%d parts, %d bytes)' % (sparts, sbytes), flush=True)
-        try: os.remove(t1)
-        except Exception: pass
+        # BACKUP-DISK-LEAK-1 (2026-09-25): t1 cleanup moved to the finally: below so an
+        # exception in the upload path cannot leak the multi-GB settings snapshot.
         # ---- MEMORY BACKUP (separate artifact; agent_memory* only) ----
         if MEMORY_BACKUP:
             t2 = snapshot(db_src, 'memory')
@@ -247,11 +249,20 @@ def main():
             mparts, mok = (1, True) if mbytes <= 95 * 1024 * 1024 else (0, False)
             mbytes2, mparts2, mok = upload_object(t2, PREFIX + STAMP + '/agent-memory.db')
             print('agent-memory.db backup: ' + ('OK' if mok else 'FAIL') + ' (%d parts, %d bytes)' % (mparts2, mbytes2), flush=True)
-            try: os.remove(t2)
-            except Exception: pass
+            # BACKUP-DISK-LEAK-1 (2026-09-25): t2 cleanup moved to the finally: below.
         return 0 if (sok and (mok or not MEMORY_BACKUP)) else 1
     except Exception as e:
         print('ERROR:', type(e).__name__, str(e)[:300]); return 1
+    finally:
+        # BACKUP-DISK-LEAK-1 (2026-09-25): the t1/t2 snapshots total several GB each. Their
+        # os.remove() calls used to live INSIDE the try:, so any exception between snapshot()
+        # and the remove (upload failure, VACUUM error, OOM) leaked the file into %TEMP% and
+        # helped fill C: to 97%% - which then caused the very 'database or disk is full' error
+        # this run reports. finally: guarantees cleanup on every path.
+        for _p in (t1, t2):
+            if _p and os.path.exists(_p):
+                try: os.remove(_p)
+                except Exception: pass
 
 if __name__ == '__main__':
     sys.exit(main())
