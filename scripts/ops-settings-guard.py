@@ -28,12 +28,13 @@ CTX, MAXOUT, TIMEOUT = 1048576, 393216, 3600000
 # Per-model CLIENT-side canonical params (2026-09-18 coverage fix - OPS-SETTINGS-GUARD-DEFAULT-MODEL-GAP-1):
 # ops-frontier is the DEFAULT and carries its OWN limits (400000/128000/600000); the relay models keep 1048576/393216/3600000.
 MODEL_PARAMS = {
+    "ops":               {"ctx": 1048576, "maxOut": 393216, "timeout": 600000},
     "ops-exec":          {"ctx": 1048576, "maxOut": 393216, "timeout": 3600000},
     "deepseek-v4-flash": {"ctx": 1048576, "maxOut": 393216, "timeout": 3600000},
     "ops-frontier":      {"ctx": 400000,  "maxOut": 128000, "timeout": 600000},
 }
 # Presence-required per the canonical docstring; other known models are validated only if listed.
-REQUIRED_MODELS = ("ops-exec", "deepseek-v4-flash")
+REQUIRED_MODELS = ("ops",)
 DESIRED_KEYS = {"providerId": "AI-GATEWAY", "modelId": "openai/gpt-4.1"}  # 2026-09-19 user directive: default key = AI-GATEWAY/openai/gpt-4.1 (was QNFO-OPS/ops-frontier); triplicate per GUARD-TRIPLICATE-CONSISTENCY-1
 CHECK_ONLY = "--check" in sys.argv[1:]
 
