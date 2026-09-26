@@ -32,13 +32,15 @@ DESIRED_KEY = {"providerId": "AI-GATEWAY", "modelId": "openai/gpt-4.1"}  # 2026-
 # SESSION-DESIRED-KEY (2026-09-19 user directive): the per-SESSION executor is QNFO-OPS/ops-frontier --
 # the fleet's SERVER-SIDE agent loop and the 'deepchat' agent-config value. DESIRED_KEY above is the
 # app_settings PICKER default only; every session must run on a server-side executor (SERVER-SIDE-EXEC-100-1).
-SESSION_KEY = {"providerId": "QNFO-OPS", "modelId": "ops-frontier"}
+SESSION_KEY = {"providerId": "QNFO-OPS", "modelId": "ops"}
 # parameter canon: DeepChat config_json keys (model_configs) + JSON contextWindow/maxOutput
 CANON_PARAM = {
     "ops-exec": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 3600000,
                  "contextWindow": 1048576, "maxOutput": 393216},
     "deepseek-v4-flash": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 3600000,
                           "contextWindow": 1048576, "maxOutput": 393216},
+    "ops": {"maxTokens": 393216, "contextLength": 1048576, "timeout": 600000,
+             "contextWindow": 1048576, "maxOutput": 393216},
     "ops-frontier": {"maxTokens": 128000, "contextLength": 400000, "timeout": 600000,
                      "contextWindow": 400000, "maxOutput": 128000},
     "ops-frontier-mini": {"maxTokens": 128000, "contextLength": 400000, "timeout": 600000,
@@ -274,7 +276,7 @@ def auto_candidate_paths():
 # QNFO-OPS/{NON_AGENTIC_MODELS} rows are touched - deliberate user picks of other providers
 # (anthropic/deepseek/etc.) are left alone; this fixes a proven-broken combination, not a
 # preference.
-NON_AGENTIC_MODELS = {"ops-exec"}
+NON_AGENTIC_MODELS = {"ops-exec", "ops-frontier", "ops-frontier-mini", "ops-frontier-reason"}
 
 # SESSION-PIN-SWEEP-2 (2026-09-19, canonical case: 195/214 sessions pinned to the DIRECT
 # deepseek provider -> DeepChat runs its own CLIENT tool loop -> local exec/run_code fail
@@ -389,7 +391,7 @@ def dc_agents_fix(c):
         for k in AGENT_MODEL_KEYS:
             v = o.get(k)
             if isinstance(v, dict) and v.get("providerId") in BROKEN_PROVIDERS:
-                o[k] = {"providerId": "QNFO-OPS", "modelId": "ops-exec" if aid == "ops" else DESIRED_KEY["modelId"]}
+                o[k] = {"providerId": "QNFO-OPS", "modelId": "ops"}
                 changed = True
         if changed:
             c.execute("UPDATE agents SET config_json=?, updated_at=? WHERE id=?",
