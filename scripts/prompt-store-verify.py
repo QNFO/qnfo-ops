@@ -199,6 +199,20 @@ def main():
             print(_agr.stdout.strip()[-1500:])
         rc = max(rc, 1 if _agr.returncode != 0 else 0)
 
+    # PROMPT-PARITY-GUARD-1 (2026-09-26): fold prompt-parity-guard.py into THIS FATAL gate.
+    # It carries D1 store-rot / D2 foreign-store / D3 anchor-skew across the system prompt AND
+    # every versioned skill (title == newest-banner == last-footer). It existed but was wired
+    # ADVISORY-only in backup_deepchat.py and was OUTSIDE the closeout trio, so a title!=footer
+    # skew (canonical: system-prompt footer v4.40 while title v4.43; kaizen H1 v2.159 while
+    # footer v2.160) produced rc=0 everywhere and slipped through. Wiring it here makes the
+    # anchor check impossible to miss: `python prompt-store-verify.py` now covers it.
+    _pg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt-parity-guard.py")
+    if os.path.isfile(_pg):
+        _pgr = subprocess.run([sys.executable, _pg], capture_output=True, text=True)
+        if _pgr.stdout:
+            print(_pgr.stdout.strip()[-1200:])
+        rc = max(rc, 1 if _pgr.returncode != 0 else 0)
+
     if rc == 0:
         print("PROMPT-STORE-VERIFY: PASS (schema + parity + system-prompt parity + gate manifest)")
     return rc
@@ -276,6 +290,28 @@ def check_system_prompt_parity():
     _md = vals.get("canonical_md") or ""
     if len(_md) > 310000:
         print("[PROMPT-SIZE] canonical base %d chars > 310000 ceiling" % len(_md))
+        errs += 1
+    # TITLE-LINE-PARITY-1 for the system prompt itself (2026-09-26 guard-gap fix):
+    # store-byte-identity does NOT catch a title/banner bump that leaves the footer stale.
+    # Canonical: title/banner were bumped to v4.43 while the footer stayed v4.40 and the
+    # guard still reported PASS. H1 title version MUST equal the last "Current:" footer version.
+    _h1v = None
+    for _l in _md.splitlines():
+        if _l.startswith('# DEEPCHAT DEFAULT SYSTEM PROMPT'):
+            _m = _re.search(r'v(\d+\.\d+)', _l)
+            _h1v = _m.group(1) if _m else None
+            break
+    _cur = _re.findall(r'Current:\s*\*\*v(\d+\.\d+)\*\*', _md)
+    _cv = _cur[-1] if _cur else None
+    # FAIL-CLOSED (2026-09-26 hardening): an ABSENT anchor is a failure too. The original form
+    # `if _h1v and _cv and _h1v != _cv` silently no-op'd whenever a title/footer FORMAT change
+    # broke the regex (anchor=None) -- i.e. it failed OPEN exactly when the check went blind.
+    # Aliases prompt-parity-guard.py D3 (kept as a fast local pre-check; both are fatal).
+    if _h1v is None or _cv is None:
+        print("[PROMPT-TITLE-FOOTER-MISSING] title-anchor=%s footer-anchor=%s (check blind; TITLE-LINE-PARITY-1)" % (_h1v, _cv))
+        errs += 1
+    elif _h1v != _cv:
+        print("[PROMPT-TITLE-FOOTER-DRIFT] title v%s != footer v%s (TITLE-LINE-PARITY-1)" % (_h1v, _cv))
         errs += 1
     if errs == 0:
         print("SYSTEM-PROMPT-PARITY: PASS (%d stores identical)" % len(vals))

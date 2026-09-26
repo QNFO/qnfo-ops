@@ -197,12 +197,13 @@ def main():
     # --- VERIFICATION GATE (wired 2026-09-12, PROMPT-PARITY-1) -----------------
     # The governance record claimed "prompt-store-verify + dr_validate_schema run inside
     # every backup" — but this tool invoked neither (only backup_agentdb_chunked). Wiring
-    # them here makes the claim true. PSV + dr_validate are HARD (fail the backup);
-    # prompt-parity-guard is ADVISORY (loud, non-fatal) until it has a track record.
+    # them here makes the claim true. PSV + dr_validate + prompt-parity-guard are HARD
+    # (fail the backup). PARITY-GUARD was advisory-only until 2026-09-26, when it proved its
+    # value (it correctly flagged a kaizen H1/banner/footer anchor skew) and was promoted.
     import subprocess as _sp
     HARD_GUARDS = (
         (os.path.join(HOMEDEEP, 'scripts', 'prompt-store-verify.py'), True, 300, 'PSV'),
-        (os.path.join(HOMEDEEP, 'scripts', 'prompt-parity-guard.py'), False, 300, 'PARITY-GUARD'),
+        (os.path.join(HOMEDEEP, 'scripts', 'prompt-parity-guard.py'), True, 300, 'PARITY-GUARD'),
     )
     for gp, hard, tmo, tag in HARD_GUARDS:
         if not os.path.exists(gp):
