@@ -187,6 +187,7 @@ def main():
     rc = max(rc, 1 if check_skill_anchor_parity() else 0)
     rc = max(rc, 0 if check_mcp_autoapprove_parity() else 1)
     rc = max(rc, 0 if check_gate_manifest() else 1)
+    rc = max(rc, 1 if check_template_parameters() else 0)
 
     # ADVERSARIAL-REASONING-1 sweep (2026-09-05): fold the adversarial-reasoning guard into
     # this parity gate so adversarial content (skills/templates/system-prompt/worker prompts)
@@ -446,6 +447,38 @@ def check_mcp_autoapprove_parity():
     except Exception as e:
         print("[MCP-AUTOAPPROVE-PARITY] check skipped: %s" % e)
         return True
+
+
+def check_template_parameters():
+    """TEMPLATE-PARAM-PARITY (2026-09-26, F1 recurrence guard): every {{paramName}}
+    placeholder in a custom template's content MUST be backed by a declared
+    parameters[].name of the same name.
+
+    Root cause this closes: the app's fill logic iterates ONLY the declared parameters
+    (app.asar getTemplateDefinition + fill_prompt_template: `if (templateArgs &&
+    template.parameters) for (const param of template.parameters) { ... replace({{name}}) }`).
+    With `parameters: []` the loop body never runs, so any {{placeholder}} renders LITERALLY
+    and templateArgs are silently ignored -- a non-functional fill template that still passes
+    every schema check. Canonical: FIND PAPERS ON TOPIC ({{topic}}) + VALIDATE CITATIONS
+    ({{file}}) shipped with parameters=[] until the 2026-09-26 CMD-template audit."""
+    import re as _re
+    cp, err = read_store("repo", DEFAULT_PATHS["repo"])
+    if err:
+        print("[TEMPLATE-PARAM] check skipped: repo unreadable (%s)" % err)
+        return True
+    _ph = _re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
+    errs = 0
+    for p in cp:
+        used = set(_ph.findall(p.get("content") or ""))
+        declared = {x.get("name") for x in (p.get("parameters") or []) if isinstance(x, dict)}
+        missing = sorted(u for u in used if u not in declared)
+        if missing:
+            print("[TEMPLATE-PARAM] %s: placeholder(s) %s not declared in parameters[] "
+                  "(fill would render them literally)" % (p.get("name"), missing))
+            errs += 1
+    if errs == 0:
+        print("TEMPLATE-PARAM-PARITY: PASS (every {{placeholder}} has a declared parameter)")
+    return errs
 
 
 def check_gate_manifest():
