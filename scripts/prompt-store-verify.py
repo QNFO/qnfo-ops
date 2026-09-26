@@ -213,6 +213,8 @@ def main():
             print(_pgr.stdout.strip()[-1200:])
         rc = max(rc, 1 if _pgr.returncode != 0 else 0)
 
+    rc = max(rc, 1 if check_guard_mirror_parity() else 0)
+
     if rc == 0:
         print("PROMPT-STORE-VERIFY: PASS (schema + parity + system-prompt parity + gate manifest)")
     return rc
@@ -366,6 +368,34 @@ def check_skill_anchor_parity():
             errs += 1
     if errs == 0:
         print("SKILL-ANCHOR-PARITY: PASS (%d versioned skills)" % n)
+    return errs
+
+
+def check_guard_mirror_parity():
+    """GUARD-MIRROR-PARITY-1 (2026-09-26): the guard scripts are themselves MIRRORED to the
+    qnfo-ops repo (Documents/GitHub/qnfo-ops/scripts). A fix applied only to the live copy
+    silently never reaches the repo (canonical: prompt-store-verify.py live 21954B vs
+    qnfo-ops mirror 20005B -- ~1.9KB of guard fixes unmirrored for an unknown interval).
+    Compare the guard scripts that exist in BOTH locations, byte-for-byte after normalizing
+    line endings (git autocrlf rewrites LF->CRLF on checkout, which is not a real drift)."""
+    import hashlib as _h
+    live = r"C:\Users\LENOVO\.deepchat\scripts"
+    ops = r"C:\Users\LENOVO\Documents\GitHub\qnfo-ops\scripts"
+    names = ("prompt-store-verify.py", "prompt-parity-guard.py", "backup_deepchat.py")
+    errs = 0
+    def _norm(p):
+        return open(p, "rb").read().replace(b"\r\n", b"\n")
+    for n in names:
+        a, b = os.path.join(live, n), os.path.join(ops, n)
+        if not (os.path.isfile(a) and os.path.isfile(b)):
+            continue
+        ha = _h.sha256(_norm(a)).hexdigest()[:16]
+        hb = _h.sha256(_norm(b)).hexdigest()[:16]
+        if ha != hb:
+            print("[GUARD-MIRROR-DRIFT] %s: live %s != ops %s (a fix reached only one copy)" % (n, ha, hb))
+            errs += 1
+    if errs == 0:
+        print("GUARD-MIRROR-PARITY: PASS (live == ops mirror)")
     return errs
 
 
