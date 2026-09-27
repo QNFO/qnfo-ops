@@ -27,7 +27,7 @@ JS = os.path.join(APP_DIR, "app-settings.json")
 CHATBOX = os.path.expandvars(r"%APPDATA%\xyz.chatboxapp.app\config.json")
 ROAM = os.path.expandvars(r"%APPDATA%")
 
-DESIRED_KEY = {"providerId": "AI-GATEWAY", "modelId": "openai/gpt-4.1"}  # 2026-09-19 user directive: /ai/v1 universal gateway endpoint (openai/gpt-4.1), deprecate QNFO-OPS custom worker + Workers AI
+DESIRED_KEY = {"providerId": "QNFO-OPS", "modelId": "ops"}  # 2026-09-26: AI-GATEWAY is NOT a registered DeepChat provider -> "Provider AI-GATEWAY not found"; canonical server-side endpoint is QNFO-OPS/ops (ONE-MODEL-PER-ENDPOINT-1). Supersedes the 2026-09-19 AI-GATEWAY picker directive.
 
 # SESSION-DESIRED-KEY (2026-09-19 user directive): the per-SESSION executor is QNFO-OPS/ops-frontier --
 # the fleet's SERVER-SIDE agent loop and the 'deepchat' agent-config value. DESIRED_KEY above is the
@@ -424,6 +424,78 @@ def dc_provider_models_fix(c):
         c.execute("INSERT OR REPLACE INTO provider_models (provider_id, model_id, source, name, group_name, sort_order, model_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                   ("QNFO-OPS", mid, "provider", mid, "frontier", 10 + i, mj, nowms, nowms))
 
+# CHATBOX-PROVIDERS-GUARD-1 (2026-09-26, canonical case CHATBOX-PROVIDER-WIPE-1): an ad-hoc
+# settings write set settings.customProviders=[] -> all 3 Cloudflare providers + their API keys
+# vanished from the ChatBox UI, while model_guard still reported CLEAN (it only checked the ops
+# provider's model params). This guard re-pins the 3 canonical providers AND their API keys into
+# BOTH settings.customProviders and settings.providers, restoring from chatbox-providers-canonical.json.
+CHATBOX_CANON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chatbox-providers-canonical.json")
+
+def _cb_canon():
+    try:
+        c = jload(CHATBOX_CANON_PATH)
+        return c if isinstance(c, list) else []
+    except Exception:
+        return []
+
+def chatbox_providers_drift(d):
+    canon = _cb_canon()
+    if not canon:
+        return []
+    s = d.get("settings") if isinstance(d, dict) else None
+    if not isinstance(s, dict):
+        return ["settings:missing"]
+    cps = s.get("customProviders")
+    provs = s.get("providers") if isinstance(s.get("providers"), dict) else {}
+    if not isinstance(cps, list):
+        return ["customProviders:missing"]
+    by_id = {c.get("id"): c for c in cps if isinstance(c, dict)}
+    drift = []
+    for w in canon:
+        pid = w["id"]
+        pv = provs.get(pid)
+        if not isinstance(pv, dict) or not pv.get("apiKey"): drift.append(pid + ":providers:apiKey")
+        cur = by_id.get(pid)
+        if cur is None:
+            drift.append("customProviders:missing:" + pid); continue
+        wds = w.get("defaultSettings", {}); cds = cur.get("defaultSettings") or {}
+        if not cds.get("apiKey"): drift.append(pid + ":custom:apiKey")
+        if cds.get("apiHost") != wds.get("apiHost"): drift.append(pid + ":custom:apiHost")
+        if [m.get("modelId") for m in (cds.get("models") or [])] != [m.get("modelId") for m in wds.get("models", [])]:
+            drift.append(pid + ":custom:models")
+    return drift
+
+def chatbox_providers_fix(d):
+    canon = _cb_canon()
+    if not canon:
+        return
+    s = d.setdefault("settings", {})
+    cps = s.get("customProviders")
+    if not isinstance(cps, list):
+        cps = []; s["customProviders"] = cps
+    by_id = {c.get("id"): c for c in cps if isinstance(c, dict)}
+    provs = s.get("providers")
+    if not isinstance(provs, dict):
+        provs = {}; s["providers"] = provs
+    for w in canon:
+        pid = w["id"]; wds = w.get("defaultSettings", {})
+        cur = by_id.get(pid)
+        if cur is None:
+            cur = json.loads(json.dumps(w)); cps.append(cur); by_id[pid] = cur
+        cds = cur.setdefault("defaultSettings", {})
+        if not cds.get("apiKey"): cds["apiKey"] = wds.get("apiKey")
+        cds["apiHost"] = wds.get("apiHost"); cds["apiPath"] = wds.get("apiPath")
+        if [m.get("modelId") for m in (cds.get("models") or [])] != [m.get("modelId") for m in wds.get("models", [])]:
+            cds["models"] = json.loads(json.dumps(wds.get("models", [])))
+        pv = provs.get(pid)
+        if not isinstance(pv, dict):
+            pv = {}; provs[pid] = pv
+        if not pv.get("apiKey"): pv["apiKey"] = wds.get("apiKey")
+        if not pv.get("apiHost"): pv["apiHost"] = wds.get("apiHost")
+        if not pv.get("apiPath"): pv["apiPath"] = wds.get("apiPath")
+        if not pv.get("models"): pv["models"] = json.loads(json.dumps(wds.get("models", [])))
+
+
 def main():
     out = {"ts": now(), "desired_key": DESIRED_KEY, "canon_params": CANON_PARAM, "stores": {}}
     rc = 0
@@ -598,6 +670,25 @@ def main():
         except Exception as e:
             rec["readback_error"] = str(e); rc = 1
         out["stores"][p] = rec
+    # CHATBOX-PROVIDERS-GUARD-1: re-pin the 3 Cloudflare providers + their API keys (root-cause repair).
+    if os.path.exists(CHATBOX) and _cb_canon():
+        try:
+            d = jload(CHATBOX)
+            cb_before = chatbox_providers_drift(d)
+            rec = out["stores"].setdefault(CHATBOX, {})
+            rec["providers_drift_before"] = cb_before
+            if cb_before:
+                chatbox_providers_fix(d)
+                atomic_json(CHATBOX, d)
+                rec["providers_fixed"] = True
+            cb_rb = chatbox_providers_drift(jload(CHATBOX))
+            rec["providers_readback"] = cb_rb
+            if cb_rb:
+                rec["providers_state"] = "verify-failed"; rc = 2
+            else:
+                rec["providers_state"] = "fixed" if cb_before else "clean"
+        except Exception as e:
+            out["stores"].setdefault(CHATBOX, {})["providers_error"] = str(e); rc = 1
     out["ops_client_stores"] = discovered
     out["state"] = "clean" if rc == 0 else ("error" if rc == 1 else "verify-failed")
     print(json.dumps(out))

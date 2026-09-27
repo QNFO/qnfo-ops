@@ -35,7 +35,7 @@ MODEL_PARAMS = {
 }
 # Presence-required per the canonical docstring; other known models are validated only if listed.
 REQUIRED_MODELS = ("ops",)
-DESIRED_KEYS = {"providerId": "AI-GATEWAY", "modelId": "openai/gpt-4.1"}  # 2026-09-19 user directive: default key = AI-GATEWAY/openai/gpt-4.1 (was QNFO-OPS/ops-frontier); triplicate per GUARD-TRIPLICATE-CONSISTENCY-1
+DESIRED_KEYS = {"providerId": "QNFO-OPS", "modelId": "ops"}  # 2026-09-19 user directive: default key = AI-GATEWAY/openai/gpt-4.1 (was QNFO-OPS/ops-frontier); triplicate per GUARD-TRIPLICATE-CONSISTENCY-1
 CHECK_ONLY = "--check" in sys.argv[1:]
 
 HOME = os.path.expanduser("~")
