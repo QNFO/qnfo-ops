@@ -1,0 +1,75 @@
+[
+  {
+    "id": "qnfo-router",
+    "name": "QNFO Router",
+    "type": "openai",
+    "isCustom": true,
+    "description": "QNFO research router on Cloudflare (free reasoning models, web, auto, ensemble)",
+    "defaultSettings": {
+      "apiKey": "rk-f0e1aa6aa2c7de8f30d34b4267785ca9cc56e277e069115b",
+      "apiHost": "https://ai.qnfo.org",
+      "apiPath": "/v1/chat/completions",
+      "models": [
+        {
+          "modelId": "qnfo",
+          "type": "chat",
+          "nickname": "qnfo",
+          "capabilities": [
+            "tool_use"
+          ],
+          "contextWindow": 1310720,
+          "maxOutput": 32768
+        }
+      ]
+    }
+  },
+  {
+    "id": "personal-twin",
+    "name": "Personal Twin",
+    "type": "openai",
+    "isCustom": true,
+    "description": "Personal assistant with your archive RAG on Cloudflare",
+    "defaultSettings": {
+      "apiKey": "sk-pl-v1-7dca6b613ca82bc513e48c5e610b7fac",
+      "apiHost": "https://personal.qnfo.org",
+      "apiPath": "/v1/chat/completions",
+      "models": [
+        {
+          "modelId": "personal",
+          "type": "chat",
+          "nickname": "personal",
+          "capabilities": [
+            "vision",
+            "tool_use"
+          ],
+          "contextWindow": 1310720,
+          "maxOutput": 200000
+        }
+      ]
+    }
+  },
+  {
+    "id": "qnfo-ops",
+    "name": "QNFO Ops",
+    "type": "openai",
+    "isCustom": true,
+    "description": "QNFO infrastructure/operations agent on Cloudflare (fleet probes, D1/R2/KV/Vectorize, self-heal)",
+    "defaultSettings": {
+      "apiKey": "0033921a5975d853bfaff65957d380b11f395f1b2ec7c852",
+      "apiHost": "https://ops.qnfo.org",
+      "apiPath": "/v1/chat/completions",
+      "models": [
+        {
+          "modelId": "ops",
+          "type": "chat",
+          "nickname": "ops",
+          "capabilities": [
+            "tool_use"
+          ],
+          "contextWindow": 1048576,
+          "maxOutput": 393216
+        }
+      ]
+    }
+  }
+]

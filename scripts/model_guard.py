@@ -193,6 +193,14 @@ def dc_js_drift(d):
     for k in ("defaultModel", "preferredModel"):
         if d.get(k) != DESIRED_KEY:
             drift.append(k + ":" + json.dumps(d.get(k)))
+    # AI-GATEWAY-STALE-ENTRY-1 (2026-09-28): the superseded AI-GATEWAY provider must not linger
+    # in the JSON snapshot (absent from the runtime provider registry, 0/77 - DEFAULT-KEY-OPS-1).
+    if any((p.get("id") or "") == "AI-GATEWAY" for p in (d.get("providers") or [])):
+        drift.append("providers:AI-GATEWAY:stale-entry")
+    if "AI-GATEWAY" in (d.get("configuredProviders") or []):
+        drift.append("configuredProviders:AI-GATEWAY:stale-entry")
+    if "AI-GATEWAY" in (d.get("providerOrder") or []):
+        drift.append("providerOrder:AI-GATEWAY:stale-entry")
     for pr in d.get("providers") or []:
         if (pr.get("id") or pr.get("providerId") or "") != "QNFO-OPS":
             continue
@@ -208,6 +216,12 @@ def dc_js_drift(d):
 def dc_js_fix(d):
     for k in ("defaultModel", "preferredModel"):
         d[k] = DESIRED_KEY
+    if "providers" in d:
+        d["providers"] = [p for p in (d.get("providers") or []) if (p.get("id") or "") != "AI-GATEWAY"]
+    if "configuredProviders" in d:
+        d["configuredProviders"] = [x for x in (d.get("configuredProviders") or []) if x != "AI-GATEWAY"]
+    if "providerOrder" in d:
+        d["providerOrder"] = [x for x in (d.get("providerOrder") or []) if x != "AI-GATEWAY"]
     for pr in d.get("providers") or []:
         if (pr.get("id") or pr.get("providerId") or "") != "QNFO-OPS":
             continue
@@ -362,7 +376,17 @@ def dc_sessions_census(c):
 # model / assistantModel / defaultModelPreset, which DeepChat copies into deepchat_sessions AT
 # SESSION CREATION. Sweeping app_settings.defaultModel alone is necessary but NOT sufficient: a
 # deepseek ref here re-pins every new session and silently re-creates SESSION-PIN-SWEEP-2.
-AGENT_MODEL_KEYS = ("model", "assistantModel", "defaultModelPreset")
+AGENT_MODEL_KEYS = ("model", "assistantModel", "defaultModelPreset", "visionModel")
+# AGENT-ALIAS-CANON-1 (2026-09-28): agent configs must pin the endpoint's SINGLE advertised ids
+# (ONE-MODEL-PER-ENDPOINT-1). Retired relay aliases (auto / personal-twin-chat / kimi-k2.6) are
+# accepted server-side (UNIVERSAL-OPENAI-MODEL-COMPAT-1) but must not be the pinned ids in agent
+# configs. Canonical case: research/automation pinned QNFO-ROUTER/auto, personal pinned
+# PERSONAL-TWIN/personal-twin-chat, deepchat+ops visionModel pinned QNFO-ROUTER/kimi-k2.6.
+AGENT_ALIAS_MAP = {
+    ("QNFO-ROUTER", "auto"): ("QNFO-ROUTER", "qnfo"),
+    ("QNFO-ROUTER", "kimi-k2.6"): ("QNFO-ROUTER", "qnfo"),
+    ("PERSONAL-TWIN", "personal-twin-chat"): ("PERSONAL-TWIN", "personal"),
+}
 
 def dc_agents_drift(c):
     bad = []
@@ -379,8 +403,9 @@ def dc_agents_drift(c):
             continue
         for k in AGENT_MODEL_KEYS:
             v = o.get(k)
-            if isinstance(v, dict) and v.get("providerId") in BROKEN_PROVIDERS:
-                bad.append({"agent": aid, "key": k, "value": v})
+            if isinstance(v, dict):
+                if v.get("providerId") in BROKEN_PROVIDERS or (v.get("providerId"), v.get("modelId")) in AGENT_ALIAS_MAP:
+                    bad.append({"agent": aid, "key": k, "value": v})
     return bad
 
 def dc_agents_fix(c):
@@ -394,23 +419,29 @@ def dc_agents_fix(c):
         changed = False
         for k in AGENT_MODEL_KEYS:
             v = o.get(k)
-            if isinstance(v, dict) and v.get("providerId") in BROKEN_PROVIDERS:
+            if not isinstance(v, dict):
+                continue
+            if v.get("providerId") in BROKEN_PROVIDERS:
                 o[k] = {"providerId": "QNFO-OPS", "modelId": "ops"}
+                changed = True
+            elif (v.get("providerId"), v.get("modelId")) in AGENT_ALIAS_MAP:
+                o[k] = {"providerId": AGENT_ALIAS_MAP[(v.get("providerId"), v.get("modelId"))][0],
+                        "modelId": AGENT_ALIAS_MAP[(v.get("providerId"), v.get("modelId"))][1]}
                 changed = True
         if changed:
             c.execute("UPDATE agents SET config_json=?, updated_at=? WHERE id=?",
                       (json.dumps(o, ensure_ascii=False), now(), aid))
 
 
-# PROVIDER-MODELS-SWEEP-1 (2026-09-18): DeepChat's model PICKER reads provider_models
-# (source='provider', re-synced from the worker's /v1/models endpoint), NOT model_configs.
-# A model present in model_configs but absent from provider_models is INVISIBLE in the picker
-# ("there is no ops in DeepChat" canonical case). The worker must advertise these in
-# provider_models every run or the re-sync silently drops them (PROVIDER-MODELS-SWEEP-1).
-FRONTIER_MODEL_IDS = ["ops-frontier", "ops-frontier-mini", "ops-frontier-reason"]  # retired ALIASES kept present; canonical id = `ops`
-# /v1/models, but this guard belt-and-suspenders them into provider_models every run so a
-# /v1/models regression cannot silently drop them again.
-FRONTIER_MODEL_IDS = ["ops-frontier", "ops-frontier-mini", "ops-frontier-reason"]
+# PICKER-SINGLE-MODEL-GUARD-1 (2026-09-28): DeepChat's model PICKER reads provider_models
+# (source='provider', re-synced from the worker's /v1/models endpoint). The endpoint advertises
+# EXACTLY ONE model id (`ops` - ONE-MODEL-PER-ENDPOINT-1); the retired ops-frontier* ids remain
+# VALID ALIASES server-side (IMMUTABLE-SPEC-VS-ALIAS-1) but must NOT be re-advertised in the
+# picker. The previous sweep re-added them every run (GUARD-ENFORCES-RETIRED-ARCH-1 anti-pattern),
+# fighting the single-model endpoint. This guard now ENFORCES the single-model picker: any
+# QNFO-OPS provider_models row that is not `ops` is deleted, as are orphan AI-GATEWAY rows
+# (AI-GATEWAY is absent from the providers table, 0/77 - DEFAULT-KEY-OPS-1).
+ORPHAN_PROVIDERS = ("AI-GATEWAY",)
 
 def dc_provider_models_drift(c):
     try:
@@ -419,16 +450,20 @@ def dc_provider_models_drift(c):
         return []
     if "model_id" not in cols:
         return []
-    present = set(r[0] for r in c.execute("SELECT model_id FROM provider_models WHERE provider_id='QNFO-OPS'").fetchall())
-    return [m for m in FRONTIER_MODEL_IDS if m not in present]
+    extra = [r[0] for r in c.execute("SELECT model_id FROM provider_models WHERE provider_id='QNFO-OPS' AND model_id!='ops'").fetchall()]
+    for pid in ORPHAN_PROVIDERS:
+        n = c.execute("SELECT COUNT(*) FROM providers WHERE id=?", (pid,)).fetchone()[0]
+        if n == 0:
+            for m in c.execute("SELECT model_id FROM provider_models WHERE provider_id=?", (pid,)).fetchall():
+                extra.append(pid + "/" + m[0])
+    return extra
 
 def dc_provider_models_fix(c):
-    import json as _json
-    nowms = int(time.time() * 1000)
-    for i, mid in enumerate(FRONTIER_MODEL_IDS):
-        mj = _json.dumps({"id": mid, "name": mid, "group": "frontier", "providerId": "QNFO-OPS", "isCustom": False, "ownedBy": "qnfo"})
-        c.execute("INSERT OR REPLACE INTO provider_models (provider_id, model_id, source, name, group_name, sort_order, model_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                  ("QNFO-OPS", mid, "provider", mid, "frontier", 10 + i, mj, nowms, nowms))
+    c.execute("DELETE FROM provider_models WHERE provider_id='QNFO-OPS' AND model_id!='ops'")
+    for pid in ORPHAN_PROVIDERS:
+        n = c.execute("SELECT COUNT(*) FROM providers WHERE id=?", (pid,)).fetchone()[0]
+        if n == 0:
+            c.execute("DELETE FROM provider_models WHERE provider_id=?", (pid,))
 
 # CHATBOX-PROVIDERS-GUARD-1 (2026-09-26, canonical case CHATBOX-PROVIDER-WIPE-1): an ad-hoc
 # settings write set settings.customProviders=[] -> all 3 Cloudflare providers + their API keys
@@ -443,6 +478,11 @@ def _cb_canon():
         return c if isinstance(c, list) else []
     except Exception:
         return []
+
+def _modelsig(models):
+    # CHATBOX-CAPABILITIES-PARITY-1 (2026-09-28): compare modelId + capabilities so the guard
+    # owns capability parity vs the canonical file (live had vision on ops/qnfo, none on personal).
+    return [(m.get("modelId"), tuple(sorted(m.get("capabilities") or []))) for m in (models or [])]
 
 def chatbox_providers_drift(d):
     canon = _cb_canon()
@@ -459,16 +499,21 @@ def chatbox_providers_drift(d):
     drift = []
     for w in canon:
         pid = w["id"]
+        wds = w.get("defaultSettings", {})
+        wsig = _modelsig(wds.get("models"))
         pv = provs.get(pid)
-        if not isinstance(pv, dict) or not pv.get("apiKey"): drift.append(pid + ":providers:apiKey")
+        if not isinstance(pv, dict) or not pv.get("apiKey"):
+            drift.append(pid + ":providers:apiKey")
+        elif _modelsig(pv.get("models")) != wsig:
+            drift.append(pid + ":providers:models/caps")
         cur = by_id.get(pid)
         if cur is None:
             drift.append("customProviders:missing:" + pid); continue
-        wds = w.get("defaultSettings", {}); cds = cur.get("defaultSettings") or {}
+        cds = cur.get("defaultSettings") or {}
         if not cds.get("apiKey"): drift.append(pid + ":custom:apiKey")
         if cds.get("apiHost") != wds.get("apiHost"): drift.append(pid + ":custom:apiHost")
-        if [m.get("modelId") for m in (cds.get("models") or [])] != [m.get("modelId") for m in wds.get("models", [])]:
-            drift.append(pid + ":custom:models")
+        if _modelsig(cds.get("models")) != wsig:
+            drift.append(pid + ":custom:models/caps")
     return drift
 
 def chatbox_providers_fix(d):
@@ -485,21 +530,42 @@ def chatbox_providers_fix(d):
         provs = {}; s["providers"] = provs
     for w in canon:
         pid = w["id"]; wds = w.get("defaultSettings", {})
+        wmodels = wds.get("models", [])
         cur = by_id.get(pid)
         if cur is None:
             cur = json.loads(json.dumps(w)); cps.append(cur); by_id[pid] = cur
         cds = cur.setdefault("defaultSettings", {})
         if not cds.get("apiKey"): cds["apiKey"] = wds.get("apiKey")
         cds["apiHost"] = wds.get("apiHost"); cds["apiPath"] = wds.get("apiPath")
-        if [m.get("modelId") for m in (cds.get("models") or [])] != [m.get("modelId") for m in wds.get("models", [])]:
-            cds["models"] = json.loads(json.dumps(wds.get("models", [])))
+        if _modelsig(cds.get("models")) != _modelsig(wmodels):
+            cds["models"] = json.loads(json.dumps(wmodels))
         pv = provs.get(pid)
         if not isinstance(pv, dict):
             pv = {}; provs[pid] = pv
         if not pv.get("apiKey"): pv["apiKey"] = wds.get("apiKey")
         if not pv.get("apiHost"): pv["apiHost"] = wds.get("apiHost")
         if not pv.get("apiPath"): pv["apiPath"] = wds.get("apiPath")
-        if not pv.get("models"): pv["models"] = json.loads(json.dumps(wds.get("models", [])))
+        if _modelsig(pv.get("models")) != _modelsig(wmodels):
+            pv["models"] = json.loads(json.dumps(wmodels))
+
+
+# CHATBOX-BUILTIN-HIDE-GUARD-1 (2026-09-28): the chatbox-ai builtin re-adds its models on app
+# launch ("hard-coded, re-adds on launch" - the 2026-09-04 hide was clobbered by the v1.23.3
+# update; live count 54). All client model calls must route through Cloudflare Quniverse
+# endpoints; this guard empties the builtin's models every run so the hide survives app updates.
+def chatbox_builtin_drift(d):
+    s = d.get("settings") if isinstance(d, dict) else None
+    if not isinstance(s, dict):
+        return []
+    m = ((s.get("providers") or {}).get("chatbox-ai") or {}).get("models")
+    return ["chatbox-ai:models=" + str(len(m))] if m else []
+
+def chatbox_builtin_fix(d):
+    s = d.setdefault("settings", {})
+    pv = s.setdefault("providers", {})
+    cai = pv.setdefault("chatbox-ai", {})
+    if cai.get("models"):
+        cai["models"] = []
 
 
 def main():
@@ -584,7 +650,7 @@ def main():
             out["stores"]["deepchat_agents"] = {"state": "error", "error": str(e)}; rc = 1
         finally:
             c.close()
-        # PROVIDER-MODELS-SWEEP-1: ensure frontier models remain in provider_models (the picker).
+        # PICKER-SINGLE-MODEL-GUARD-1: enforce the single-model picker (delete retired/orphan rows).
     if os.path.exists(DB):
         c = sqlite3.connect(DB, timeout=10)
         try:
@@ -695,6 +761,25 @@ def main():
                 rec["providers_state"] = "fixed" if cb_before else "clean"
         except Exception as e:
             out["stores"].setdefault(CHATBOX, {})["providers_error"] = str(e); rc = 1
+    # CHATBOX-BUILTIN-HIDE-GUARD-1: empty the chatbox-ai builtin models (hide from picker).
+    if os.path.exists(CHATBOX):
+        try:
+            d = jload(CHATBOX)
+            bb = chatbox_builtin_drift(d)
+            rec = out["stores"].setdefault(CHATBOX, {})
+            rec["builtin_drift_before"] = bb
+            if bb:
+                chatbox_builtin_fix(d)
+                atomic_json(CHATBOX, d)
+                rec["builtin_fixed"] = True
+            brb = chatbox_builtin_drift(jload(CHATBOX))
+            rec["builtin_readback"] = brb
+            if brb:
+                rec["builtin_state"] = "verify-failed"; rc = 2
+            else:
+                rec["builtin_state"] = "fixed" if bb else "clean"
+        except Exception as e:
+            out["stores"].setdefault(CHATBOX, {})["builtin_error"] = str(e); rc = 1
     out["ops_client_stores"] = discovered
     out["state"] = "clean" if rc == 0 else ("error" if rc == 1 else "verify-failed")
     print(json.dumps(out))
