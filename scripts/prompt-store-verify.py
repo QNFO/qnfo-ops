@@ -188,6 +188,12 @@ def main():
     rc = max(rc, 0 if check_mcp_autoapprove_parity() else 1)
     rc = max(rc, 0 if check_gate_manifest() else 1)
     rc = max(rc, 1 if check_template_parameters() else 0)
+    # TEMPLATE-MODEL-INVARIANT-1 (2026-09-27): the TEMPLATE leg of RC-1. SPEC-VS-GUARD-1 asserts
+    # the SYSTEM PROMPT names the live canonical default; nothing asserted the prompt TEMPLATES,
+    # so a cycle could re-introduce the superseded, unresolvable default (AI-GATEWAY/openai/gpt-4.1)
+    # into a CMD template and every gate would still pass (canonical: the pasted CMD UPDATE text on
+    # 2026-09-27 still carried gpt-4.1 while the stores + guards had moved to QNFO-OPS/ops).
+    rc = max(rc, 0 if check_template_model_invariant() else 1)
 
     # ADVERSARIAL-REASONING-1 sweep (2026-09-05): fold the adversarial-reasoning guard into
     # this parity gate so adversarial content (skills/templates/system-prompt/worker prompts)
@@ -567,6 +573,52 @@ def check_gate_manifest():
         return False
     print("[GATE-MANIFEST] PASS (bootstrap + full gate manifest schema-validated)")
     return True
+
+
+def check_template_model_invariant():
+    """TEMPLATE-MODEL-INVARIANT-1 (2026-09-27) -- the TEMPLATE leg of RC-1.
+
+    SPEC-VS-GUARD-1 asserts the SYSTEM PROMPT names the live canonical default. Nothing
+    asserted the prompt TEMPLATES, so a cycle could re-introduce the superseded, unresolvable
+    default (AI-GATEWAY/openai/gpt-4.1) into a CMD template and every gate would still pass.
+    Asserts, over the repo canonical template store:
+      (1) no entry content/template contains the superseded id 'gpt-4.1';
+      (2) any entry stating the default-model invariant names the live canonical pair, read
+          from model_guard.DESIRED_KEY (never hardcoded here -- rule (d)).
+    Fails closed.
+    """
+    import re as _re
+    scripts = os.path.join(os.path.expanduser("~"), ".deepchat", "scripts")
+    try:
+        t = open(os.path.join(scripts, "model_guard.py"), encoding="utf-8", errors="replace").read()
+    except OSError as e:
+        print("[TEMPLATE-MODEL-INVARIANT] unreadable model_guard.py: %s" % e)
+        return False
+    m = _re.search(r'DESIRED_KEY\b[^\n]*?\{\s*"providerId":\s*"([^"]+)",\s*"modelId":\s*"([^"]+)"', t)
+    if not m:
+        print("[TEMPLATE-MODEL-INVARIANT] no DESIRED_KEY literal in model_guard.py")
+        return False
+    pair = "%s/%s" % (m.group(1), m.group(2))
+    path = DEFAULT_PATHS.get("repo_skills_canon") or DEFAULT_PATHS.get("repo")
+    try:
+        cp = json.load(open(path, encoding="utf-8"))
+    except Exception as e:
+        print("[TEMPLATE-MODEL-INVARIANT] unreadable canonical store %s: %s" % (path, e))
+        return False
+    errs = 0
+    for p in (cp if isinstance(cp, list) else []):
+        if not isinstance(p, dict):
+            continue
+        blob = (p.get("content") or "") + "\n" + (p.get("template") or "")
+        if "gpt-4.1" in blob:
+            print("[TEMPLATE-MODEL-INVARIANT] FAIL: template %r carries the superseded id gpt-4.1" % p.get("name"))
+            errs += 1
+        if "DEEPCHAT-DEFAULT-MODEL-1" in blob and pair not in blob:
+            print("[TEMPLATE-MODEL-INVARIANT] FAIL: template %r states the default invariant but does not name %s" % (p.get("name"), pair))
+            errs += 1
+    if errs == 0:
+        print("[TEMPLATE-MODEL-INVARIANT] PASS (no superseded default; invariants name %s)" % pair)
+    return errs == 0
 
 
 if __name__ == "__main__":
