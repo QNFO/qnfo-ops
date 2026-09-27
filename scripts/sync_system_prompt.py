@@ -31,7 +31,7 @@ ROAMING_JSON = r"C:\Users\LENOVO\AppData\Roaming\DeepChat\app-settings.json"
 ROAMING_DB = r"C:\Users\LENOVO\AppData\Roaming\DeepChat\app_db\agent.db"
 GUARD = r"C:\Users\LENOVO\.deepchat\skills\config-guard\scripts\config-guard.py"
 FLASH = "deepseek/deepseek-v4-flash"  # RELAY-MODEL-1: flash relay remains available for explicit relay selection
-MODEL_DICT = {"providerId": "QNFO-OPS", "modelId": "ops"}  # 2026-09-19 user directive: default key = AI-GATEWAY/openai/gpt-4.1 (was QNFO-OPS/ops-frontier); triplicate per GUARD-TRIPLICATE-CONSISTENCY-1
+MODEL_DICT = {"providerId": "QNFO-OPS", "modelId": "ops"}  # DEFAULT-KEY-OPS-1 (2026-09-27): canonical DeepChat default = the OPS endpoint's single advertised model id (ONE-MODEL-PER-ENDPOINT-1); supersedes the 2026-09-19 AI-GATEWAY/openai/gpt-4.1 value, which is unresolvable (AI-GATEWAY absent from the runtime provider registry, 0/77). Triplicate per GUARD-TRIPLICATE-CONSISTENCY-1.
 
 
 def guard(*args):
