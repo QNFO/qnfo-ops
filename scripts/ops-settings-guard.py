@@ -34,6 +34,9 @@ MODEL_PARAMS = {
     "ops-frontier":      {"ctx": 400000,  "maxOut": 128000, "timeout": 600000},
 }
 # Presence-required per the canonical docstring; other known models are validated only if listed.
+# `ops` is the canonical default + the endpoint's single advertised id (DEFAULT-KEY-OPS-1).
+# ops-frontier* entries below are retired ALIASES kept at the intentional 400000/128000 spec
+# (IMMUTABLE-SPEC-VS-ALIAS-1) -- they are not the default and must not be raised to `ops` caps.
 REQUIRED_MODELS = ("ops",)
 DESIRED_KEYS = {"providerId": "QNFO-OPS", "modelId": "ops"}  # DEFAULT-KEY-OPS-1 (2026-09-27): canonical DeepChat default = the OPS endpoint's single advertised model id (ONE-MODEL-PER-ENDPOINT-1); supersedes the 2026-09-19 AI-GATEWAY/openai/gpt-4.1 value, which is unresolvable (AI-GATEWAY absent from the runtime provider registry, 0/77). Triplicate per GUARD-TRIPLICATE-CONSISTENCY-1.
 CHECK_ONLY = "--check" in sys.argv[1:]

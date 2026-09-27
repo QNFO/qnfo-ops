@@ -2,7 +2,7 @@
 """model_guard.py v3 - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
 HARDEN-AND-MANDATE (user directive 2026-09-09, applied systemwide): the canonical ops-exec
 settings below are IMMUTABLE - no agent, session, or process may change them:
-  model key        : QNFO-OPS / ops-frontier (GPT-5 frontier, tool_calls-capable) in ALL four DeepChat keys (DB + JSON)
+  model key        : QNFO-OPS / ops (the endpoint's single advertised model id) in ALL four DeepChat keys (DB + JSON)
   context window   : 1048576 (1M)   [DeepSeek source-truth ceiling]
   max output       : 393216 (384K)  [live probe valid range [1,393216]; 384000 accepted,
                                      500000 -> 400 invalid_request_error; MAX-OUT-393K-1]
@@ -29,7 +29,10 @@ ROAM = os.path.expandvars(r"%APPDATA%")
 
 DESIRED_KEY = {"providerId": "QNFO-OPS", "modelId": "ops"}  # 2026-09-26: AI-GATEWAY is NOT a registered DeepChat provider -> "Provider AI-GATEWAY not found"; canonical server-side endpoint is QNFO-OPS/ops (ONE-MODEL-PER-ENDPOINT-1). Supersedes the 2026-09-19 AI-GATEWAY picker directive.
 
-# SESSION-DESIRED-KEY (2026-09-19 user directive): the per-SESSION executor is QNFO-OPS/ops-frontier --
+# SESSION-DESIRED-KEY: the per-SESSION executor is QNFO-OPS/ops (DEFAULT-KEY-OPS-1, 2026-09-27).
+# The retired `ops-frontier` id remains a VALID ALIAS (IMMUTABLE-SPEC-VS-ALIAS-1: ctx 400000 /
+# maxOut 128000 are intentional and are NOT raised), but it is no longer what sessions or the
+# default key are pinned to -- both are `ops`.
 # the fleet's SERVER-SIDE agent loop and the 'deepchat' agent-config value. DESIRED_KEY above is the
 # app_settings PICKER default only; every session must run on a server-side executor (SERVER-SIDE-EXEC-100-1).
 SESSION_KEY = {"providerId": "QNFO-OPS", "modelId": "ops"}
@@ -286,10 +289,11 @@ NON_AGENTIC_MODELS = {"ops-exec", "ops-frontier", "ops-frontier-mini", "ops-fron
 # SWEEP-1 left these alone as "deliberate user picks" - wrong: they are the residue of the
 # agent default, i.e. a proven-broken combination, not a preference. BROKEN_PROVIDERS is the
 # allowlist of providers with no server-side executor path.
-BROKEN_PROVIDERS = {"deepseek", "anthropic"}  # 2026-09-19 user directive: direct deepseek AND anthropic pins have NO server-side executor -> DeepChat runs its own CLIENT tool loop (SERVER-SIDE-EXEC-100-1 violation) -> rewrite to SESSION_KEY (ops-frontier) and KEEP them there (durability; supersedes the earlier "direct deepseek allowed as fallback" sentinel). Canonical case: ptR3pIaDrDOJDVcwSmDlb reverted to deepseek-v4-flash after a one-off manual UPDATE that had no re-probe.
+BROKEN_PROVIDERS = {"deepseek", "anthropic"}  # 2026-09-19 user directive: direct deepseek AND anthropic pins have NO server-side executor -> DeepChat runs its own CLIENT tool loop (SERVER-SIDE-EXEC-100-1 violation) -> rewrite to SESSION_KEY (QNFO-OPS/ops) and KEEP them there (durability; supersedes the earlier "direct deepseek allowed as fallback" sentinel). Canonical case: ptR3pIaDrDOJDVcwSmDlb reverted to deepseek-v4-flash after a one-off manual UPDATE that had no re-probe.
 
 # NON-TOOL-MODELS-1 (2026-09-19, user directive "apply C for true server-side tool execution"):
-# ops-exec/ops-frontier/-mini/-reason run a PURE SERVER-SIDE agent loop and emit NO client
+# ops-exec/ops-frontier/-mini/-reason are retired ALIASES (still accepted, still 400000/128000);
+# the canonical default + session id is `ops` (DEFAULT-KEY-OPS-1). These run a PURE SERVER-SIDE agent loop and emit NO client
 # tool_calls. DeepChat must treat them as non-tool (model_configs config.functionCall=False) so its
 # client agent layer does NOT enable tool-mode and wait for tool_calls that never arrive (which
 # surfaced as "Request failed"). With functionCall=False DeepChat sends a plain chat request, the
@@ -401,7 +405,9 @@ def dc_agents_fix(c):
 # PROVIDER-MODELS-SWEEP-1 (2026-09-18): DeepChat's model PICKER reads provider_models
 # (source='provider', re-synced from the worker's /v1/models endpoint), NOT model_configs.
 # A model present in model_configs but absent from provider_models is INVISIBLE in the picker
-# ("there is no ops-frontier in DeepChat" canonical case). The worker must advertise these in
+# ("there is no ops in DeepChat" canonical case). The worker must advertise these in
+# provider_models every run or the re-sync silently drops them (PROVIDER-MODELS-SWEEP-1).
+FRONTIER_MODEL_IDS = ["ops-frontier", "ops-frontier-mini", "ops-frontier-reason"]  # retired ALIASES kept present; canonical id = `ops`
 # /v1/models, but this guard belt-and-suspenders them into provider_models every run so a
 # /v1/models regression cannot silently drop them again.
 FRONTIER_MODEL_IDS = ["ops-frontier", "ops-frontier-mini", "ops-frontier-reason"]
