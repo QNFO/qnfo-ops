@@ -26,7 +26,7 @@ import json, os, re, sqlite3, sys, tempfile, datetime
 
 CTX, MAXOUT, TIMEOUT = 1048576, 393216, 3600000
 # Per-model CLIENT-side canonical params (2026-09-18 coverage fix - OPS-SETTINGS-GUARD-DEFAULT-MODEL-GAP-1):
-# ops-frontier is the DEFAULT and carries its OWN limits (400000/128000/600000); the relay models keep 1048576/393216/3600000.
+# ops is the DEFAULT (DEFAULT-KEY-OPS-1) and carries its OWN limits (1048576/393216/600000); ops-frontier is a retired ALIAS at its own intentional 400000/128000/600000 (IMMUTABLE-SPEC-VS-ALIAS-1), not the default.
 MODEL_PARAMS = {
     "ops":               {"ctx": 1048576, "maxOut": 393216, "timeout": 600000},
     "ops-exec":          {"ctx": 1048576, "maxOut": 393216, "timeout": 3600000},
