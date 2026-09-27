@@ -20,9 +20,13 @@ All three are OpenAI-compatible:
 
 ## 2. Client settings
 
-- **DeepChat** (`AppData/Roaming/DeepChat/app-settings.json`): `defaultModel` = `preferredModel` =
-  `{providerId:"AI-GATEWAY", modelId:"openai/gpt-4.1"}` — per the standing directive
-  DEEPCHAT-DEFAULT-MODEL-1. Guarded by `model_guard.py`. **CORRECT.**
+- **DeepChat** (`AppData/Roaming/DeepChat/app-settings.json` + `app_db/agent.db` `app_settings`):
+  `defaultModel` = `preferredModel` = `{providerId:"QNFO-OPS", modelId:"ops"}` — the OPS endpoint's
+  single advertised model id (ONE-MODEL-PER-ENDPOINT-1). Guarded by `model_guard.py`.
+  **CORRECT (reconciled 2026-09-27).** `AI-GATEWAY` is NOT in the DeepChat runtime provider registry
+  (0 of 77 providers), so it is unresolvable as a default (`Provider AI-GATEWAY not found`); the
+  DEEPCHAT-DEFAULT-MODEL-1 `AI-GATEWAY/openai/gpt-4.1` value is superseded by DEFAULT-KEY-OPS-1.
+  (AI-GATEWAY remains available as an OPTIONAL provider — see `app-settings.json` `customProviders`.)
 - **ChatBox** (`AppData/Roaming/xyz.chatboxapp.app/config.json`): must be **3 providers × 1 model**:
   `qnfo-router → https://ai.qnfo.org → qnfo`, `personal-twin → https://personal.qnfo.org → personal`,
   `qnfo-ops → https://ops.qnfo.org → ops`. **FIXED 2026-09-26** (was 6 providers incl. 3 workers.dev
