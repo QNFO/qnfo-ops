@@ -216,6 +216,11 @@ def main():
 
     rc = max(rc, 1 if check_guard_mirror_parity() else 0)
 
+    # SPEC-VS-GUARD-1 (2026-09-27): the guards and the SPEC TEXT must agree, not just the guards
+    # with each other. Closes RC-1 (canonical: the prompt kept instructing a revert to the
+    # unresolvable AI-GATEWAY default after the triplicate had moved to QNFO-OPS/ops).
+    rc = max(rc, 0 if check_spec_guard_parity() else 1)
+
     if rc == 0:
         print("PROMPT-STORE-VERIFY: PASS (schema + parity + system-prompt parity + gate manifest)")
     return rc
@@ -370,6 +375,59 @@ def check_skill_anchor_parity():
     if errs == 0:
         print("SKILL-ANCHOR-PARITY: PASS (%d versioned skills)" % n)
     return errs
+
+
+def check_spec_guard_parity():
+    """SPEC-VS-GUARD-1 (2026-09-27) -- closes RC-1.
+
+    GUARD-TRIPLICATE-CONSISTENCY-1 compares the three guard scripts to EACH OTHER; nothing
+    compared them to the SPEC TEXT. So a client fix that reached the live stores + the guard
+    working trees but never the prompt prose left the system prompt instructing future cycles to
+    REVERT the guards (canonical: 2026-09-27, prompt said AI-GATEWAY/openai/gpt-4.1 while the
+    triplicate enforced QNFO-OPS/ops; AI-GATEWAY is absent from the runtime provider registry,
+    0/77, so the prompt's value was unresolvable). This gate asserts:
+      (1) model_guard.DESIRED_KEY == ops-settings-guard.DESIRED_KEYS == sync_system_prompt.MODEL_DICT
+      (2) the system prompt's LIVE default statement names exactly that pair.
+    A mismatch fails closed.
+    """
+    import re as _re, os as _os
+    home = _os.path.expanduser("~")
+    scripts = _os.path.join(home, ".deepchat", "scripts")
+    srcs = [
+        ("model_guard.DESIRED_KEY", _os.path.join(scripts, "model_guard.py"), "DESIRED_KEY"),
+        ("ops-settings-guard.DESIRED_KEYS", _os.path.join(scripts, "ops-settings-guard.py"), "DESIRED_KEYS"),
+        ("sync_system_prompt.MODEL_DICT", _os.path.join(scripts, "sync_system_prompt.py"), "MODEL_DICT"),
+    ]
+    vals = {}
+    for label, path, ident in srcs:
+        try:
+            t = open(path, encoding="utf-8", errors="replace").read()
+        except OSError as e:
+            print("[SPEC-VS-GUARD] unreadable %s: %s" % (label, e))
+            return False
+        m = _re.search(r'\b%s\b[^\n]*?\{\s*"providerId":\s*"([^"]+)",\s*"modelId":\s*"([^"]+)"' % ident, t)
+        if not m:
+            print("[SPEC-VS-GUARD] no default-key literal next to %s in %s" % (ident, path))
+            return False
+        vals[label] = (m.group(1), m.group(2))
+    uniq = set(vals.values())
+    if len(uniq) != 1:
+        print("[SPEC-VS-GUARD] guard triplicate DIVERGED: %s" % vals)
+        return False
+    pid, mid = uniq.pop()
+    try:
+        md = open(SYSPROMPT_STORES["canonical_md"], encoding="utf-8", errors="replace").read()
+    except OSError as e:
+        print("[SPEC-VS-GUARD] unreadable canonical_md: %s" % e)
+        return False
+    norm = _re.sub(r"\s+", "", md)
+    lit = '{"providerId":"%s","modelId":"%s"}' % (pid, mid)
+    if lit not in norm:
+        print("[SPEC-VS-GUARD] system prompt does NOT state the enforced default %s/%s "
+              "(the prompt and the guards have re-diverged -- RC-1)" % (pid, mid))
+        return False
+    print("[SPEC-VS-GUARD] PASS (spec == guard triplicate: %s/%s)" % (pid, mid))
+    return True
 
 
 def check_guard_mirror_parity():
