@@ -595,6 +595,36 @@ def chatbox_builtin_fix(d):
         cai["models"] = []
 
 
+# CHATBOX-PROMPT-GUARD-1 (2026-09-28): ChatBox's system prompt (settings.defaultPrompt) is a
+# client-store instruction surface that NO guard owned -- the 2026-09-28 audit found it STALE
+# (workers.dev hosts, the retired `ops-exec` model id, "~54 workers") and a ChatBox settings-save
+# could re-clobber it. Restore the canonical prompt when it is empty or has re-staled.
+CHATBOX_PROMPT_CANON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chatbox-system-prompt-canonical.txt")
+CHATBOX_PROMPT_STALE = ("workers.dev", "ops-exec", "personal-twin-chat", "~54 workers")
+
+def _cb_prompt_canon():
+    try:
+        return open(CHATBOX_PROMPT_CANON_PATH, encoding="utf-8").read()
+    except Exception:
+        return ""
+
+def chatbox_prompt_drift(d):
+    s = d.get("settings") if isinstance(d, dict) else None
+    if not isinstance(s, dict):
+        return ["settings:missing"]
+    dp = s.get("defaultPrompt") or ""
+    if not dp.strip():
+        return ["defaultPrompt:empty"]
+    hits = [m for m in CHATBOX_PROMPT_STALE if m in dp]
+    return ["defaultPrompt:stale:" + ",".join(hits)] if hits else []
+
+def chatbox_prompt_fix(d):
+    canon = _cb_prompt_canon()
+    if not canon:
+        return
+    d.setdefault("settings", {})["defaultPrompt"] = canon
+
+
 def main():
     out = {"ts": now(), "desired_key": DESIRED_KEY, "canon_params": CANON_PARAM, "stores": {}}
     rc = 0
@@ -826,6 +856,25 @@ def main():
                 rec["builtin_state"] = "fixed" if bb else "clean"
         except Exception as e:
             out["stores"].setdefault(CHATBOX, {})["builtin_error"] = str(e); rc = 1
+    # CHATBOX-PROMPT-GUARD-1: restore the canonical ChatBox system prompt on drift (empty/stale).
+    if os.path.exists(CHATBOX) and _cb_prompt_canon():
+        try:
+            d = jload(CHATBOX)
+            pb = chatbox_prompt_drift(d)
+            rec = out["stores"].setdefault(CHATBOX, {})
+            rec["prompt_drift_before"] = pb
+            if pb:
+                chatbox_prompt_fix(d)
+                atomic_json(CHATBOX, d)
+                rec["prompt_fixed"] = True
+            prb = chatbox_prompt_drift(jload(CHATBOX))
+            rec["prompt_readback"] = prb
+            if prb:
+                rec["prompt_state"] = "verify-failed"; rc = 2
+            else:
+                rec["prompt_state"] = "fixed" if pb else "clean"
+        except Exception as e:
+            out["stores"].setdefault(CHATBOX, {})["prompt_error"] = str(e); rc = 1
     out["ops_client_stores"] = discovered
     out["state"] = "clean" if rc == 0 else ("error" if rc == 1 else "verify-failed")
     print(json.dumps(out))
