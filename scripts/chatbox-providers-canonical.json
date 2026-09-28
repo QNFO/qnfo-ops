@@ -14,9 +14,7 @@
           "modelId": "qnfo",
           "type": "chat",
           "nickname": "qnfo",
-          "capabilities": [
-            "tool_use"
-          ],
+          "capabilities": [],
           "contextWindow": 1310720,
           "maxOutput": 32768
         }
@@ -38,10 +36,7 @@
           "modelId": "personal",
           "type": "chat",
           "nickname": "personal",
-          "capabilities": [
-            "vision",
-            "tool_use"
-          ],
+          "capabilities": [],
           "contextWindow": 1310720,
           "maxOutput": 200000
         }
@@ -63,9 +58,7 @@
           "modelId": "ops",
           "type": "chat",
           "nickname": "ops",
-          "capabilities": [
-            "tool_use"
-          ],
+          "capabilities": [],
           "contextWindow": 1048576,
           "maxOutput": 393216
         }

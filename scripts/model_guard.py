@@ -358,9 +358,10 @@ def dc_sessions_census(c):
     by_pin = {"%s/%s" % (p, m): n for p, m, n in rows}
     desired = "%s/%s" % (SESSION_KEY["providerId"], SESSION_KEY["modelId"])
     # Residual = sessions NOT on the desired key AND NOT on the QNFO-OPS server-side-executor
-    # provider. These run DeepChat's CLIENT tool loop instead of the server-side executor
-    # (SERVER-SIDE-EXEC-100-1). Direct deepseek is an allowed fallback, so they are surfaced,
-    # never silently rewritten.
+    # provider. Sessions on BROKEN_PROVIDERS (deepseek/anthropic) are REWRITTEN to SESSION_KEY by
+    # dc_sessions_fix above -- the census therefore surfaces any OTHER non-QNFO-OPS pin that policy
+    # leaves intact (DOC/CODE-PARITY fix 2026-09-28: the prior wording claimed deepseek was
+    # 'surfaced, never silently rewritten', contradicting dc_sessions_fix which does rewrite it).
     residual = {
         k: v for k, v in by_pin.items()
         if k != desired and not k.startswith("QNFO-OPS/")
@@ -464,6 +465,32 @@ def dc_provider_models_fix(c):
         n = c.execute("SELECT COUNT(*) FROM providers WHERE id=?", (pid,)).fetchone()[0]
         if n == 0:
             c.execute("DELETE FROM provider_models WHERE provider_id=?", (pid,))
+
+# MODEL-STATUS-CONVERGE-1 (2026-09-28): model_status is a SECOND model registry (the enable/disable
+# surface) independent of provider_models. After ONE-MODEL-PER-ENDPOINT-1 it retained enabled=1 rows
+# for RETIRED ids (QNFO-ROUTER 17, QNFO-OPS 7, PERSONAL-TWIN 4) -- a surface no guard owned (only
+# restore-deepchat-providers.py referenced it). Converge: for each QNFO endpoint enable ONLY its
+# single advertised id; DISABLE the retired residue (rows kept, non-destructive).
+MODEL_STATUS_CANON = {"QNFO-OPS": "ops", "QNFO-ROUTER": "qnfo", "PERSONAL-TWIN": "personal"}
+
+def dc_model_status_drift(c):
+    extra = []
+    try:
+        cols = [r[1] for r in c.execute("PRAGMA table_info(model_status)")]
+    except Exception:
+        return []
+    if "enabled" not in cols:
+        return []
+    for pid, keep in MODEL_STATUS_CANON.items():
+        for mid, en in c.execute("SELECT model_id, enabled FROM model_status WHERE provider_id=?", (pid,)).fetchall():
+            if mid != keep and en == 1:
+                extra.append("%s/%s=enabled" % (pid, mid))
+    return extra
+
+def dc_model_status_fix(c):
+    for pid, keep in MODEL_STATUS_CANON.items():
+        c.execute("UPDATE model_status SET enabled=0, updated_at=? WHERE provider_id=? AND model_id!=? AND enabled=1",
+                  (ms(), pid, keep))
 
 # CHATBOX-PROVIDERS-GUARD-1 (2026-09-26, canonical case CHATBOX-PROVIDER-WIPE-1): an ad-hoc
 # settings write set settings.customProviders=[] -> all 3 Cloudflare providers + their API keys
@@ -667,6 +694,25 @@ def main():
                 out["stores"]["deepchat_provider_models"]["state"] = "fixed" if pb else "clean"
         except Exception as e:
             out["stores"]["deepchat_provider_models"] = {"state": "error", "error": str(e)}; rc = 1
+        finally:
+            c.close()
+        # MODEL-STATUS-CONVERGE-1: retire stale enabled rows in the second model registry.
+    if os.path.exists(DB):
+        c = sqlite3.connect(DB, timeout=10)
+        try:
+            mb = dc_model_status_drift(c)
+            out["stores"]["deepchat_model_status"] = {"drift_before": mb}
+            if mb:
+                dc_model_status_fix(c); c.commit()
+                out["stores"]["deepchat_model_status"]["fixed"] = True
+            mrb = dc_model_status_drift(c)
+            out["stores"]["deepchat_model_status"]["readback"] = mrb
+            if mrb:
+                out["stores"]["deepchat_model_status"]["state"] = "verify-failed"; rc = 2
+            else:
+                out["stores"]["deepchat_model_status"]["state"] = "fixed" if mb else "clean"
+        except Exception as e:
+            out["stores"]["deepchat_model_status"] = {"state": "error", "error": str(e)}; rc = 1
         finally:
             c.close()
 # DeepChat JSON
