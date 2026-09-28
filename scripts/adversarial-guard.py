@@ -38,6 +38,14 @@ dodmiss = [e.get("name") for e in tpl if DOD_MARKER not in (e.get("content") or 
 check(not dodmiss, f"templates: {len(tpl)} entries, {len(dodmiss)} missing DOD-AUDIT (Definition-of-Done audit) line"
       + ("" if not dodmiss else " -> " + ", ".join(dodmiss)))
 
+# NO-LOCAL-SKILLS-1 (2026-09-28): the client loads NO skills (enableSkills:false); no CMD
+# template may mandate a skill (skill_list/skill_view). Codifies the deprecation.
+SKILL_MANDATE = ("skill_list", "skill_view")
+smiss = [e.get("name") for e in tpl
+         if any(m in ((e.get("content") or "") + "\n" + (e.get("template") or "")) for m in SKILL_MANDATE)]
+check(not smiss, f"templates: {len(tpl)} entries, {len(smiss)} mandate a local skill (NO-LOCAL-SKILLS-1)"
+      + ("" if not smiss else " -> " + ", ".join(smiss)))
+
 PLAN_MARKER = "update_plan"
 planmiss = [e.get("name") for e in tpl if PLAN_MARKER not in (e.get("content") or "")]
 check(not planmiss, f"templates: {len(tpl)} entries, {len(planmiss)} missing update_plan requirement"
