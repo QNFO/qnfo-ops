@@ -105,6 +105,27 @@ def heal_app_settings():
         atomic_json(JS, d)
 
 
+def heal_app_db():
+    """agent.db app_settings defaultModel/preferredModel must be QNFO-OPS/ops -- the app
+    reverts these to the last-used provider (seen: deepseek). MODELKEY-CONVERGE-1."""
+    if not os.path.exists(DB):
+        return
+    want = json.dumps({"providerId": "QNFO-OPS", "modelId": "ops"})
+    try:
+        con = sqlite3.connect(DB, timeout=10)
+        cur = con.cursor()
+        for k in ("defaultModel", "preferredModel"):
+            row = cur.execute("SELECT value_json FROM app_settings WHERE key=?", (k,)).fetchone()
+            if row is None or row[0] != want:
+                cur.execute("UPDATE app_settings SET value_json=?, updated_at=? WHERE key=?",
+                            (want, now(), k))
+                changed.append("db:" + k)
+        con.commit()
+        con.close()
+    except Exception as e:
+        print(json.dumps({"ts": now(), "appdb_error": str(e)[:120]}))
+
+
 def heal_mcp():
     if not os.path.exists(MCP):
         return
@@ -174,7 +195,7 @@ def purge_residue():
 
 
 def main():
-    for fn in (heal_app_settings, heal_mcp, heal_model_status, purge_residue):
+    for fn in (heal_app_settings, heal_app_db, heal_mcp, heal_model_status, purge_residue):
         try:
             fn()
         except Exception as e:
