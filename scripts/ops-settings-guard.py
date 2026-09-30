@@ -203,6 +203,14 @@ def align_dc_db(c, drift):
 def align_dc_json(d):
     d["defaultModel"] = dict(DESIRED_KEYS)
     d["preferredModel"] = dict(DESIRED_KEYS)
+    _provs = d.get("providers")
+    if isinstance(_provs, list) and not any((p.get("id") or "") == "QNFO-OPS" for p in _provs):
+        _provs.append({
+            "id": "QNFO-OPS", "name": "QNFO Ops", "apiType": "openai",
+            "baseUrl": "https://ops.qnfo.org/v1", "enabled": True,
+            "models": [{"id": "ops", "maxOutput": MODEL_PARAMS["ops"]["maxOut"],
+                        "contextWindow": MODEL_PARAMS["ops"]["ctx"]}],
+        })
     for pr in d.get("providers", []):
         if (pr.get("id") or "") == "QNFO-OPS":
             for m in pr.get("models", []):
