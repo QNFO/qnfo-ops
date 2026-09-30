@@ -6,7 +6,7 @@
     "isCustom": true,
     "description": "QNFO research router on Cloudflare (free reasoning models, web, auto, ensemble)",
     "defaultSettings": {
-      "apiKey": "rk-f0e1aa6aa2c7de8f30d34b4267785ca9cc56e277e069115b",
+      "apiKey": "REDACTED-SET-LOCALLY-NEVER-COMMIT",
       "apiHost": "https://ai.qnfo.org",
       "apiPath": "/v1/chat/completions",
       "models": [
@@ -28,7 +28,7 @@
     "isCustom": true,
     "description": "Personal assistant with your archive RAG on Cloudflare",
     "defaultSettings": {
-      "apiKey": "sk-pl-v1-7dca6b613ca82bc513e48c5e610b7fac",
+      "apiKey": "REDACTED-SET-LOCALLY-NEVER-COMMIT",
       "apiHost": "https://personal.qnfo.org",
       "apiPath": "/v1/chat/completions",
       "models": [
@@ -50,7 +50,7 @@
     "isCustom": true,
     "description": "QNFO infrastructure/operations agent on Cloudflare (fleet probes, D1/R2/KV/Vectorize, self-heal)",
     "defaultSettings": {
-      "apiKey": "0033921a5975d853bfaff65957d380b11f395f1b2ec7c852",
+      "apiKey": "REDACTED-SET-LOCALLY-NEVER-COMMIT",
       "apiHost": "https://ops.qnfo.org",
       "apiPath": "/v1/chat/completions",
       "models": [
