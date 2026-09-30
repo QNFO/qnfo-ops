@@ -14,7 +14,8 @@ import glob, os, sys, time
 TEMP = os.environ.get("TEMP") or os.path.join(os.environ.get("LOCALAPPDATA", ""), "Temp")
 AGE_HOURS = float(os.environ.get("SNAPSHOT_AGE_HOURS", "24"))
 CUTOFF = time.time() - AGE_HOURS * 3600
-PATTERNS = ("agent-snapshot-*.db", "agent-snapshot-*-settings.db", "agent-prune-test.db")
+PATTERNS = ("agent-snapshot-*.db", "agent-snapshot-*-settings.db", "agent-prune-test.db",
+            "agent-snapshot-*.db-wal", "agent-snapshot-*.db-shm")  # 2026-09-30: -wal/-shm included
 
 removed = 0
 freed = 0

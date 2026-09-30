@@ -196,6 +196,18 @@ def main():
     if not TOKEN:
         print('ERROR: CLOUDFLARE_API_TOKEN missing'); return 1
     db_src = os.path.join(ROAM, 'app_db', 'agent.db')
+    # DEEP-CLEANUP-2026-09-30: pre-flight free-space gate - never start a multi-GB snapshot
+    # unless %TEMP%'s volume has room for it + 2GB headroom (the 2026-09-28 disk-fill:
+    # leaked snapshots hit ~97% usage and broke app startup).
+    try:
+        import shutil as _sh
+        _free = _sh.disk_usage(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp')).free
+        _need = os.path.getsize(db_src) + (2 * 1024 * 1024 * 1024)
+        if _free < _need:
+            print('ERROR: insufficient free space for snapshot: free=%d need=%d' % (_free, _need))
+            return 1
+    except OSError as _e:
+        print('  [WARN] preflight skipped: %s' % _e, flush=True)
     t1 = None
     t2 = None
     try:
