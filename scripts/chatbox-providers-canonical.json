@@ -60,7 +60,7 @@
           "nickname": "ops",
           "capabilities": [],
           "contextWindow": 1048576,
-          "maxOutput": 393216
+          "maxOutput": 65536
         }
       ]
     }

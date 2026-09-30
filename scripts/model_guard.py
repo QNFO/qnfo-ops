@@ -52,6 +52,20 @@ CANON_PARAM = {
                             "contextWindow": 200000, "maxOutput": 100000},
 }
 
+# CHATBOX-OPS-MAXOUT-1 (2026-09-30): CLIENT-side cap for the ChatBox Ops provider ONLY.
+# User intent 2026-09-30: Ops max output "lowered from 393,216 to 65,536 to stop runaway
+# replies". The ENDPOINT canon stays 393216 (DeepChat JSON provider + worker + ops-settings-
+# guard); this override applies to the ChatBox provider store (settings.providers) via the
+# generic-client aligner below. Mirrored to the canonical ChatBox provider JSON.
+CHATBOX_PARAM_OVERRIDE = {"ops": {"maxOutput": 65536}}
+
+
+def _want_param(mid):
+    w = dict(CANON_PARAM.get(mid) or {})
+    w.update(CHATBOX_PARAM_OVERRIDE.get(mid, {}))
+    return w or None
+
+
 OPS_HOST_MARK = "qnfo-ops.q08.workers.dev"
 OPS_HOST_MARK_NEW = "ops.qnfo.org"  # new bot-protection-bypass domain (2026-09-15)
 
@@ -240,7 +254,7 @@ def client_store(providers):
         if OPS_HOST_MARK in host or OPS_HOST_MARK_NEW in host:
             drift = []
             for m in pv.get("models") or []:
-                want = CANON_PARAM.get(m.get("modelId"))
+                want = _want_param(m.get("modelId"))
                 if not want:
                     continue
                 for field, val in (("contextWindow", want["contextWindow"]), ("maxOutput", want["maxOutput"])):
@@ -251,7 +265,7 @@ def client_store(providers):
 
 def client_fix(pv):
     for m in pv.get("models") or []:
-        want = CANON_PARAM.get(m.get("modelId"))
+        want = _want_param(m.get("modelId"))
         if not want:
             continue
         m["contextWindow"] = want["contextWindow"]
@@ -600,7 +614,7 @@ def chatbox_builtin_fix(d):
 # (workers.dev hosts, the retired `ops-exec` model id, "~54 workers") and a ChatBox settings-save
 # could re-clobber it. Restore the canonical prompt when it is empty or has re-staled.
 CHATBOX_PROMPT_CANON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chatbox-system-prompt-canonical.txt")
-CHATBOX_PROMPT_STALE = ("workers.dev", "ops-exec", "personal-twin-chat", "~54 workers")
+CHATBOX_PROMPT_STALE = ("workers.dev", "ops-exec", "personal-twin-chat", "~54 workers", "~37 workers")
 
 def _cb_prompt_canon():
     try:

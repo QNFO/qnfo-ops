@@ -33,6 +33,10 @@ MODEL_PARAMS = {
     "deepseek-v4-flash": {"ctx": 1048576, "maxOut": 393216, "timeout": 3600000},
     "ops-frontier":      {"ctx": 400000,  "maxOut": 128000, "timeout": 600000},
 }
+# CHATBOX-OPS-MAXOUT-1 (2026-09-30): the ChatBox CLIENT caps the Ops model max output at 65536
+# (user intent 2026-09-30: lowered 393216 -> 65536 to stop runaway replies). The ENDPOINT
+# canon stays 393216 (DeepChat + worker.js + MODEL_PARAMS). DeepChat JSON uses MODEL_PARAMS.
+CHATBOX_MAXOUT_OVERRIDE = {"ops": 65536}
 # Presence-required per the canonical docstring; other known models are validated only if listed.
 # `ops` is the canonical default + the endpoint's single advertised id (DEFAULT-KEY-OPS-1).
 # ops-frontier* entries below are retired ALIASES kept at the intentional 400000/128000 spec
@@ -165,7 +169,8 @@ def chatbox_drift(d):
             if mid in REQUIRED_MODELS:
                 p.append("chatbox qnfo-ops/" + mid + ": missing")
             continue
-        if int(m.get("maxOutput") or 0) != mp["maxOut"]:
+        cb_max = CHATBOX_MAXOUT_OVERRIDE.get(mid, mp["maxOut"])
+        if int(m.get("maxOutput") or 0) != cb_max:
             p.append("chatbox qnfo-ops/" + mid + " maxOutput=" + str(m.get("maxOutput")))
         if int(m.get("contextWindow") or 0) != mp["ctx"]:
             p.append("chatbox qnfo-ops/" + mid + " ctx=" + str(m.get("contextWindow")))
@@ -222,8 +227,9 @@ def align_chatbox(d):
     ops = (d.get("settings", {}).get("providers", {}) or {}).get("qnfo-ops", {})
     for m in ops.get("models", []):
         if model_id(m) in MODEL_PARAMS:
-            m["maxOutput"] = MODEL_PARAMS[model_id(m)]["maxOut"]
-            m["contextWindow"] = MODEL_PARAMS[model_id(m)]["ctx"]
+            mid = model_id(m)
+            m["maxOutput"] = CHATBOX_MAXOUT_OVERRIDE.get(mid, MODEL_PARAMS[mid]["maxOut"])
+            m["contextWindow"] = MODEL_PARAMS[mid]["ctx"]
 
 def atomic_write(path, obj):
     d = os.path.dirname(path)

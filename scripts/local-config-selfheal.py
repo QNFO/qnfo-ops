@@ -30,18 +30,25 @@ OPS_MODEL = {"id": "ops", "maxOutput": 393216, "contextWindow": 1048576,
              "maxTokens": 393216, "contextLength": 1048576}
 
 # canonical MCP servers: name -> autoApprove list (MCP-AUTOAPPROVE-PARITY-1)
+# MCP-EXPLICIT-APPROVALS-1 (2026-09-30): explicit auto-approve allow-list, never ["all"]
+# (user intent 2026-09-30: "explicit tool approvals instead of all"); `remember_fact` is a
+# WRITE and MUST require approval (qnfo-memory-mcp has no auth) -> removed from the allow-list.
 MCP_CANON = {
-    "deepchat-inmemory/auto-prompting-server": ["all"],
-    "deepchat-inmemory/conversation-search-server": ["all"],
+    "deepchat-inmemory/auto-prompting-server": ["list_all_prompt_template_names",
+                                                "get_prompt_template_parameters",
+                                                "fill_prompt_template"],
+    "deepchat-inmemory/conversation-search-server": ["search_conversations", "search_messages",
+                                                    "get_conversation_history",
+                                                    "get_conversation_stats"],
     "cloudflare": ["search", "docs", "workers_list", "workers_get_worker",
                    "workers_get_worker_code", "kv_namespaces_list", "kv_namespace_get",
                    "d1_databases_list", "d1_database_get", "r2_buckets_list", "r2_bucket_get",
                    "hyperdrive_configs_list", "hyperdrive_config_get",
                    "cloudflare-docs_search_cloudflare_documentation"],
-    "cloudflare-docs": ["all"],
+    "cloudflare-docs": ["search_cloudflare_documentation", "migrate_pages_to_workers_guide"],
     "qnfo-memory-mcp": ["search_papers", "search_papers_enriched", "resolve_paper_id",
                         "search_memories", "recall_facts", "query_graph",
-                        "get_paper_context", "remember_fact"],
+                        "get_paper_context"],
     "qnfo-tools-mcp": ["web_search", "web_fetch", "papers_search", "history_recall",
                        "personal_search"],
 }
