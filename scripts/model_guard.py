@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""model_guard.py v3 - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
+"""model_guard.py v3.1 (2026-10-01) - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
 HARDEN-AND-MANDATE (user directive 2026-09-09, applied systemwide): the canonical ops-exec
 settings below are IMMUTABLE - no agent, session, or process may change them:
   model key        : QNFO-OPS / ops (the endpoint's single advertised model id) in ALL four DeepChat keys (DB + JSON)
@@ -16,6 +16,9 @@ present as of 2026-09-09; when it appears, this guard adopts it automatically).
 
 Canonical: QNFO/qnfo-ops/scripts/model_guard.py (mirror C:/Users/LENOVO/.deepchat/scripts).
 Trigger: Windows Task Scheduler 'QNFO-ModelKey-Guard' every 30 min.
+Client-prompt guards: CHATBOX-PROMPT-GUARD-1 (settings.defaultPrompt) + CLAUDE-PROMPT-GUARD-1
+(~/.claude/CLAUDE.md) restore each client's system prompt from its canonical; SHARED-DOCTRINE-PARITY-1
+asserts 5 cross-client doctrine concepts across the DeepChat/ChatBox/Claude canonicals.
 Recurrence-ZERO-1 guard for MODEL-KEY-FILE-DRIFT-1 + model-parameter drift.
 Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix. Idempotent; silent when clean.
 """
