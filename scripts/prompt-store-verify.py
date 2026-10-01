@@ -222,6 +222,10 @@ def main():
 
     rc = max(rc, 1 if check_guard_mirror_parity() else 0)
 
+    # CLIENT-CANONICAL-PARITY-1 (2026-10-01): the client system-prompt CANONICAL .txt files are
+    # mirrored to live + qnfo-ops + qnfo-skills; a change reaching only some copies is silent drift.
+    rc = max(rc, 1 if check_client_canonical_parity() else 0)
+
     # SPEC-VS-GUARD-1 (2026-09-27): the guards and the SPEC TEXT must agree, not just the guards
     # with each other. Closes RC-1 (canonical: the prompt kept instructing a revert to the
     # unresolvable AI-GATEWAY default after the triplicate had moved to QNFO-OPS/ops).
@@ -463,6 +467,37 @@ def check_guard_mirror_parity():
             errs += 1
     if errs == 0:
         print("GUARD-MIRROR-PARITY: PASS (live == ops mirror)")
+    return errs
+
+
+def check_client_canonical_parity():
+    """CLIENT-CANONICAL-PARITY-1 (2026-10-01): the client system-prompt CANONICAL files
+    (chatbox-system-prompt-canonical.txt, claude-system-prompt-canonical.txt) are mirrored to
+    live + qnfo-ops + qnfo-skills; a change reaching only some copies is silent drift (canonical:
+    the skills mirror of chatbox-system-prompt-canonical.txt carried the stale '~37 workers'
+    phrasing while live/ops held the current 'live worker count: fleet.qnfo.org'). Compare all
+    mirrors, byte-for-byte after normalizing line endings (git autocrlf is not a real drift)."""
+    import hashlib as _h
+    bases = {
+        "live":   r"C:\Users\LENOVO\.deepchat\scripts",
+        "ops":    r"C:\Users\LENOVO\Documents\GitHub\qnfo-ops\scripts",
+        "skills": r"C:\Users\LENOVO\Documents\GitHub\qnfo-skills\prompt-stores",
+    }
+    names = ("chatbox-system-prompt-canonical.txt", "claude-system-prompt-canonical.txt")
+    errs = 0
+    def _norm(p):
+        return open(p, "rb").read().replace(b"\r\n", b"\n")
+    for n in names:
+        digests = {}
+        for loc, base in bases.items():
+            p = os.path.join(base, n)
+            if os.path.isfile(p):
+                digests[loc] = _h.sha256(_norm(p)).hexdigest()[:16]
+        if len(set(digests.values())) > 1:
+            print("[CLIENT-CANONICAL-DRIFT] %s: %s (a change reached only some mirrors)" % (n, digests))
+            errs += 1
+    if errs == 0:
+        print("CLIENT-CANONICAL-PARITY: PASS (live == ops == skills)")
     return errs
 
 
