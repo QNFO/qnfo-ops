@@ -33,19 +33,40 @@ _LOCK = os.path.join(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp'
 def _pid_alive(pid: int) -> bool:
     # BACKUP-STALE-LOCK-1 (2026-09-24): the lock stores the holder PID but the old
     # _lock_held() used ONLY a 60-min mtime TTL, so a crash/kill (atexit not fired)
-    # blocked every backup for up to an hour. OpenProcess with
-    # PROCESS_QUERY_LIMITED_INFORMATION (0x1000) is the reliable Windows liveness
-    # probe: it returns NULL when the PID is gone (os.kill(pid,0) is unreliable).
+    # blocked every backup for up to an hour.
+    # LOCK-PID-REUSE-1 (2026-09-30): a bare PID-existence probe is UNSOUND on
+    # Windows because PIDs are recycled — a stale lock whose PID was reused by an
+    # unrelated process (e.g. chrome.exe) reads as "live" forever and blocks every
+    # write. The liveness check MUST verify the holder's process IMAGE NAME matches
+    # the expected owner (a python interpreter), not mere PID existence.
     if not pid or pid <= 0:
         return False
     try:
         import ctypes
         k = ctypes.windll.kernel32
-        h = k.OpenProcess(0x1000, False, int(pid))
-        if h:
-            k.CloseHandle(h)
+        k.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_bool, ctypes.c_ulong]
+        k.OpenProcess.restype = ctypes.c_void_p
+        k.QueryFullProcessImageNameW.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_ulong)]
+        k.QueryFullProcessImageNameW.restype = ctypes.c_bool
+        h = k.OpenProcess(0x1000, False, int(pid))  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            buf = ctypes.create_unicode_buffer(512)
+            size = ctypes.c_ulong(512)
+            ok = k.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size))
+            if ok:
+                base = os.path.basename(buf.value).lower()
+                # Expected holder: a python interpreter (python.exe / pythonw.exe /
+                # versioned python3.x). Anything else => PID was recycled.
+                if base.startswith("python"):
+                    return True
+                print("STALE LOCK reclaimed (pid " + str(pid) + " is " + base + ", not python)")
+                return False
+            # Image name unreadable (older OS / access denied): fail closed.
             return True
-        return False
+        finally:
+            k.CloseHandle(h)
     except Exception:
         return True  # cannot determine -> assume held (fail-closed)
 
