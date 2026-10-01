@@ -639,6 +639,81 @@ def chatbox_prompt_fix(d):
     d.setdefault("settings", {})["defaultPrompt"] = canon
 
 
+# CLAUDE-PROMPT-GUARD-1 (2026-10-01): Claude Code's user memory (~/.claude/CLAUDE.md) is a
+# front-end instruction surface with NO guard. Coordinate it with ChatBox: same 14-rule doctrine,
+# server-side-exec-only emphasis. Restore from canonical on empty/stale/divergence.
+CLAUDE_MD_PATH = os.path.join(os.path.expanduser("~"), ".claude", "CLAUDE.md")
+CLAUDE_PROMPT_CANON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "claude-system-prompt-canonical.txt")
+CLAUDE_PROMPT_STALE = ("workers.dev", "ops-exec", "personal-twin-chat", "~54 workers", "~37 workers", "chatbox-ai")
+
+def _claude_prompt_canon():
+    try:
+        return open(CLAUDE_PROMPT_CANON_PATH, encoding="utf-8").read()
+    except Exception:
+        return ""
+
+def claude_prompt_drift():
+    canon = _claude_prompt_canon()
+    if not canon:
+        return ["canonical:missing"]
+    if not os.path.exists(CLAUDE_MD_PATH):
+        return ["CLAUDE.md:missing"]
+    try:
+        live = open(CLAUDE_MD_PATH, encoding="utf-8").read()
+    except Exception:
+        return ["CLAUDE.md:unreadable"]
+    if not live.strip():
+        return ["CLAUDE.md:empty"]
+    hits = [m for m in CLAUDE_PROMPT_STALE if m in live]
+    if hits:
+        return ["CLAUDE.md:stale:" + ",".join(hits)]
+    if live.rstrip("\n") != canon.rstrip("\n"):
+        return ["CLAUDE.md:diverged"]
+    return []
+
+def claude_prompt_fix():
+    canon = _claude_prompt_canon()
+    if not canon:
+        return
+    d = os.path.dirname(CLAUDE_MD_PATH)
+    if d and not os.path.isdir(d):
+        os.makedirs(d, exist_ok=True)
+    with open(CLAUDE_MD_PATH, "w", encoding="utf-8") as f:
+        f.write(canon)
+
+
+# SHARED-DOCTRINE-PARITY-1 (2026-10-01): the three front-end client prompts (DeepChat, ChatBox,
+# Claude) MUST carry the same shared doctrine. DeepChat phrases it as gate-names, ChatBox/Claude as
+# rule-titles, so each concept maps to a set of accepted markers; a prompt passes a concept if ANY
+# accepted phrasing is present. Coordinates the three surfaces so a doctrine change in one prompt is
+# flagged until mirrored to the others.
+SHARED_DOCTRINE_CONCEPTS = {
+    "server-side-execution": ("SERVER-SIDE-EXEC-100-1", "SERVER-SIDE EXECUTION ONLY"),
+    "english-only": ("ENGLISH-ONLY", "ENGLISH ONLY"),
+    "adversarial-reasoning": ("ADVERSARIAL-REASONING-1", "NO SYCOPHANCY"),
+    "verification": ("COMPUTATIONAL-VERIFICATION-1", "VERIFY-IN-CODE-1", "EVIDENCE OVER ASSERTION"),
+    "execute-over-chat": ("EXECUTION OVER CHAT", "ANSWER DIRECTLY"),
+}
+
+def shared_doctrine_parity():
+    canon_sources = {
+        "deepchat": os.path.join(os.path.expanduser("~"), ".deepchat", "system-prompt-v2.7.md"),
+        "chatbox": CHATBOX_PROMPT_CANON_PATH,
+        "claude": CLAUDE_PROMPT_CANON_PATH,
+    }
+    out = {}
+    for name, p in canon_sources.items():
+        try:
+            txt = open(p, encoding="utf-8").read()
+        except Exception as e:
+            out[name] = "missing:" + str(e)
+            continue
+        missing = [c for c, marks in SHARED_DOCTRINE_CONCEPTS.items()
+                   if not any(m in txt for m in marks)]
+        out[name] = ("ok" if not missing else "missing:" + ",".join(missing))
+    return out
+
+
 def main():
     out = {"ts": now(), "desired_key": DESIRED_KEY, "canon_params": CANON_PARAM, "stores": {}}
     rc = 0
@@ -889,6 +964,29 @@ def main():
                 rec["prompt_state"] = "fixed" if pb else "clean"
         except Exception as e:
             out["stores"].setdefault(CHATBOX, {})["prompt_error"] = str(e); rc = 1
+    # CLAUDE-PROMPT-GUARD-1: restore the canonical Claude Code memory (~/.claude/CLAUDE.md) on
+    # empty/stale/divergence, keeping the Claude front-end coordinated with ChatBox/DeepChat.
+    if _claude_prompt_canon():
+        try:
+            cd = claude_prompt_drift()
+            rec = out["stores"].setdefault("claude", {})
+            rec["prompt_drift_before"] = cd
+            if cd:
+                claude_prompt_fix()
+                rec["prompt_fixed"] = True
+            crb = claude_prompt_drift()
+            rec["prompt_readback"] = crb
+            if crb:
+                rec["prompt_state"] = "verify-failed"; rc = 2
+            else:
+                rec["prompt_state"] = "fixed" if cd else "clean"
+        except Exception as e:
+            out["stores"].setdefault("claude", {})["prompt_error"] = str(e); rc = 1
+    # SHARED-DOCTRINE-PARITY-1: report shared-doctrine marker coverage across the three canonicals.
+    parity = shared_doctrine_parity()
+    out["shared_doctrine_parity"] = parity
+    if any(v != "ok" for v in parity.values()):
+        rc = max(rc, 2)
     out["ops_client_stores"] = discovered
     out["state"] = "clean" if rc == 0 else ("error" if rc == 1 else "verify-failed")
     print(json.dumps(out))
