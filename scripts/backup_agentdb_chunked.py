@@ -18,7 +18,7 @@ TOKEN = os.environ.get('CLOUDFLARE_API_TOKEN', '')
 ACCT = 'edb167b78c9fb901ea5bca3ce58ccc4b'
 BUCKET = 'qnfo-backups'
 ROAM = r'C:/Users/LENOVO/AppData/Roaming/DeepChat'
-CHUNK = 90 * 1024 * 1024  # 90 MiB < REST ~100 MB cap
+CHUNK = int(os.environ.get('BACKUP_CHUNK_BYTES', 90 * 1024 * 1024))  # 90 MiB < REST ~100 MB cap; env-overridable (2026-10-04: host link resets PUTs >=8 MiB -> run 4 MiB)
 PREFIX = 'deepchat/' + time.strftime('%Y/%m') + '/'
 STAMP = time.strftime('%Y%m%d-%H%M%S')
 MEMORY_BACKUP = os.environ.get('MEMORY_BACKUP', '1') == '1'
@@ -53,11 +53,30 @@ MEMORY_TABLES = ['agent_memory', 'agent_memory_tombstone', 'agent_memory_clear_j
 
 def upload(key, data):
     url = f'https://api.cloudflare.com/client/v4/accounts/{ACCT}/r2/buckets/{BUCKET}/objects/{key}'
-    req = urllib.request.Request(url, method='PUT', data=data, headers={
-        'Authorization': f'Bearer {TOKEN}', 'Content-Type': 'application/octet-stream',
-        'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req, timeout=600) as r:
-        return json.loads(r.read().decode('utf-8')).get('success', False)
+    # 2026-10-04 (R2-TLS-EOF-1): on this host urllib resets any PUT >= ~2 MiB with
+    # "EOF occurred in violation of protocol" (curl handles up to ~4-6 MiB). Upload via curl
+    # from a tempfile; callers chunk bodies to <= CHUNK (default now 4 MiB) so each PUT stays small.
+    import subprocess, tempfile
+    fd, tmp = tempfile.mkstemp(prefix='r2put_', suffix='.bin')
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data)
+        r = subprocess.run(['curl', '-s', '-S', '-m', '600',
+                            '--retry', '6', '--retry-all-errors', '--retry-delay', '2',
+                            '--http1.1', '-X', 'PUT',
+                            '-H', f'Authorization: Bearer {TOKEN}',
+                            '-H', 'Content-Type: application/octet-stream',
+                            '--data-binary', '@' + tmp, url], capture_output=True)
+        try:
+            return json.loads(r.stdout.decode('utf-8', 'replace')).get('success', False)
+        except Exception:
+            print('  [WARN] upload(%s) non-json rc=%s out=%r' % (key, r.returncode, r.stdout[:120]), flush=True)
+            return False
+    finally:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
 
 def snapshot(db_src, suffix):
     tmp = os.path.join(os.environ.get('TEMP', 'C:/Users/LENOVO/AppData/Local/Temp'),
@@ -165,7 +184,9 @@ def clear_memory_rows(con):
 
 def upload_object(path, key):
     size = os.path.getsize(path)
-    if size <= 95 * 1024 * 1024:
+    # 2026-10-04 (R2-TLS-EOF-1): single-shot only up to one CHUNK; larger files go multi-part so
+    # every PUT stays small enough for the host link (urllib/2MiB, curl/4MiB resets).
+    if size <= CHUNK:
         with open(path, 'rb') as f:
             data = f.read()
         ok = upload(key, data)
