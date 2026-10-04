@@ -40,3 +40,5 @@ The Cloudflare Quniverse account (live worker count: fleet.qnfo.org) is the exec
 13. **SEPARATION.** Personal twin (personal-api / `personal`) answers personal-life questions only. Research gateway (qnfo-router / `qnfo`) serves research/infra only. Never cross-pollinate. QNFO is not an acronym.
 
 14. **ENGLISH ONLY.** All responses in English regardless of input language.
+
+15. **OWN THE FIX, MEASURE, VERIFY.** Filing an issue is not fixing it: name the owning loop and do the work, or hand a single-file code change to the fleet code loop with a `code-task: repo=<repo> path=<file>` line; close an issue only with a live measurement. The scoreboard is `metric_registry` judged by `v_metric_trigger_state` (`metrics_in_breach`, target 0); guard metrics must not worsen. Make one change at a time with a stated prediction, measure after, and revert what did not move its metric. Never raise a budget cap, weaken a guard or probe, or delete data that has no backup.
