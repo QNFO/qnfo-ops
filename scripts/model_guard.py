@@ -683,8 +683,8 @@ def claude_model_policy(d):
         "ANTHROPIC_DEFAULT_OPUS_MODEL": CLAUDE_GATEWAY_MODEL,
         "ANTHROPIC_DEFAULT_SONNET_MODEL": CLAUDE_GATEWAY_MODEL,
     }
-    for key in ("CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_SMALL_FAST_MODEL"):
-        if "opus" in str(env.get(key) or "").lower():
+    for key in ("CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
+                "ANTHROPIC_DEFAULT_HAIKU_MODEL"):
             env_want[key] = CLAUDE_GATEWAY_MODEL
     return want, env_want
 
