@@ -150,7 +150,8 @@ async function collectGatewayCostReport(env, month) {
       logs.push(...body.result);
       const totalCount = body.result_info && body.result_info.total_count;
       const total = Number(totalCount);
-      if ((totalCount != null && Number.isFinite(total) && logs.length >= total) || body.result.length < GATEWAY_LOG_PAGE_SIZE) {
+      const hasTotal = totalCount != null && Number.isFinite(total);
+      if ((hasTotal && logs.length >= total) || (!hasTotal && body.result.length < GATEWAY_LOG_PAGE_SIZE)) {
         complete = true;
         break;
       }
