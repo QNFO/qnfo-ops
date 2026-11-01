@@ -668,8 +668,8 @@ def claude_default_gateway(d):
     url = urlsplit(base_url)
     parts = url.path.rstrip("/").split("/")
     return (url.scheme == "https" and url.hostname == "gateway.ai.cloudflare.com"
-            and len(parts) >= 5 and parts[1] == "v1" and bool(parts[2])
-            and parts[3] == "default" and parts[4] in ("anthropic", "compat"))
+            and len(parts) == 5 and parts[1] == "v1" and bool(parts[2])
+            and parts[3] == "default" and parts[4] in ("anthropic", "compat")
 
 
 def claude_model_policy(d):
