@@ -553,7 +553,7 @@ export default {
         const report = await collectGatewayCostReport(env, url.searchParams.get("month"));
         return new Response(JSON.stringify(report), { headers: { "Content-Type": "application/json", ...cors } });
       } catch (e) {
-        return new Response(JSON.stringify({ error: String(e && e.message || e) }), { status: 502, headers: { "Content-Type": "application/json", ...cors } });
+        return new Response(JSON.stringify({ error: "gateway cost report unavailable" }), { status: 502, headers: { "Content-Type": "application/json", ...cors } });
       }
     }
     if (path === "/records" && method === "GET") {

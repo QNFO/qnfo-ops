@@ -68,3 +68,19 @@ test("the authenticated report route fetches the requested calendar month from b
     globalThis.fetch = originalFetch;
   }
 });
+
+test("the report route does not expose upstream error details", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("sensitive upstream response", { status: 403 });
+  try {
+    const response = await worker.fetch(new Request("https://qnfo-infra/gateway-cost-report?month=2026-10", {
+      headers: { Authorization: ["Bearer", "test-token"].join(" ") }
+    }), { INFRA_TOKEN: "test-token", CF_ACCOUNT: "test-account", CF_TOKEN: "test-token" });
+    const result = await response.json();
+
+    assert.equal(response.status, 502);
+    assert.deepEqual(result, { error: "gateway cost report unavailable" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
