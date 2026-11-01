@@ -14,7 +14,7 @@ import { connect } from "cloudflare:sockets";
 // job failures, new DeepChat stable release, cost alert >$90, NLnet one-shot.
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/scheduler/worker.js
 
-const VERSION = "1.13.0"; // outreach activation gate + email validation (2026-09-03 RED-TEAM legacy-drain gate) // visibility digest adds Ops AI section (WHAT-ELSE P0-2 2026-09-03)
+const VERSION = "1.14.0"; // outreach activation gate + email validation (2026-09-03 RED-TEAM legacy-drain gate) // visibility digest adds Ops AI section (WHAT-ELSE P0-2 2026-09-03)
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 const ACCOUNT = "edb167b78c9fb901ea5bca3ce58ccc4b";
 const WORKER_NAME = "qnfo-cloud-ops";
@@ -169,6 +169,7 @@ const AMS_SCHEDULE = {
   "loose-threads-sweep": { times: ["07:00"], days: "1", fixed: null },
   "visibility":      { times: ["07:30"], days: "1", fixed: null },
   "engagement":      { times: ["07:15"], days: "1", fixed: null },
+  "monthly-cost-report": { times: ["09:00"], days: null, fixed: { dom: 1, mon: "*" } },
 };
 
 // Build cron strings (UTC) for a given Amsterdam UTC offset in hours (+2 CEST, +1 CET).
@@ -212,11 +213,16 @@ function amsOffset(instant) {
 async function syncSchedules(env, force) {
   const off = amsOffset(new Date());
   const stored = await stateGet(env, "cron_offset", String(off));
-  if (!force && String(off) === String(stored)) return { changed: false, offset: off };
   const crons = buildCrons(off);
+  const signature = crons.map((c) => c.job + "=" + c.cron).sort().join("|");
+  const storedSignature = await stateGet(env, "cron_signature", "");
+  if (!force && String(off) === String(stored) && signature === String(storedSignature)) return { changed: false, offset: off };
   const r = await cfApi(env, "/workers/scripts/" + WORKER_NAME + "/schedules", "PUT", crons.map((c) => ({ cron: c.cron })));
   const ok = r.status === 200 && r.body && r.body.success;
-  if (ok) await stateSet(env, "cron_offset", String(off));
+  if (ok) {
+    await stateSet(env, "cron_offset", String(off));
+    await stateSet(env, "cron_signature", signature);
+  }
   return { changed: true, ok, offset: off, crons: crons.map((c) => c.cron), status: r.status };
 }
 
@@ -923,9 +929,9 @@ async function jobWeeklyOps(env) {
   // DST self-adjust: rebuild cron triggers when the Amsterdam offset changes
   const dst = await syncSchedules(env, false);
   if (dst.changed) {
-    L.push("DST re-sync: offset=" + dst.offset + ", schedules " + (dst.ok ? "updated" : "UPDATE FAILED (status " + dst.status + ")"));
+    L.push("Schedule sync: offset=" + dst.offset + ", schedules " + (dst.ok ? "updated" : "UPDATE FAILED (status " + dst.status + ")"));
   } else {
-    L.push("Schedules: 11 cron triggers, Amsterdam offset +" + dst.offset + ".");
+    L.push("Schedules: " + buildCrons(dst.offset).length + " cron triggers, Amsterdam offset +" + dst.offset + ".");
   }
 
   try {
@@ -977,6 +983,55 @@ async function jobWeeklyOps(env) {
   // SILENCE POLICY: email only on cost alert or a failed DST schedule rebuild.
   const d = alert ? await sendDigest(env, subject, text) : await storeDigest(env, "weekly-ops", subject, text);
   return { status: "ok", notes: { est_cost_30d: cost, dst: dst.changed, digest: d } };
+}
+
+async function jobMonthlyCostReport(env) {
+  const now = new Date();
+  const monthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const month = monthDate.toISOString().slice(0, 7);
+  const response = await env.QNFO_INFRA.fetch(
+    "https://qnfo-infra.internal/gateway-cost-report?month=" + encodeURIComponent(month),
+    { headers: { Authorization: "Bearer " + env.INFRA_TOKEN } }
+  );
+  const report = await response.json();
+  if (!response.ok || report.error) throw new Error("gateway cost report unavailable: " + (report.error || response.status));
+
+  const lines = ["QNFO AI Gateway cost report — " + month, "", "Source: " + report.source];
+  for (const gateway of report.gateways || []) {
+    lines.push("", gateway.gateway + ": $" + gateway.cost_usd + " across " + gateway.requests + " requests" + (gateway.complete ? "" : " (INCOMPLETE — page limit reached)"));
+    if (gateway.missing_cost_requests) lines.push("Requests without valid cost: " + gateway.missing_cost_requests);
+    if (gateway.invalid_timestamp_logs) lines.push("Logs without usable timestamps: " + gateway.invalid_timestamp_logs);
+    lines.push("Providers (spend / cap):");
+    for (const provider of (gateway.by_provider || []).slice(0, 12)) {
+      const cap = provider.cap_usd == null ? "no configured cap" : "$" + provider.cap_usd + " (" + Math.round(provider.cost_usd / provider.cap_usd * 100) + "%; " + provider.cap_status + ")";
+      lines.push("- " + provider.provider + ": $" + provider.cost_usd + " / " + cap + " (" + provider.requests + " requests)");
+    }
+    lines.push("Models:");
+    for (const model of (gateway.by_model || []).slice(0, 12)) lines.push("- " + model.model + ": $" + model.cost_usd + " (" + model.requests + " requests)");
+    lines.push("Workers:");
+    for (const worker of (gateway.by_worker || []).slice(0, 12)) lines.push("- " + worker.worker + ": $" + worker.cost_usd + " (" + worker.requests + " requests)");
+    lines.push("Provider / model / worker:");
+    for (const row of (gateway.by_provider_model_worker || []).slice(0, 12)) {
+      lines.push("- " + row.provider + " / " + row.model + " / " + row.worker + ": $" + row.cost_usd + " (" + row.requests + " requests)");
+    }
+  }
+  if (!report.complete) lines.push("", "WARNING: one or more gateways reached the 5,000-log collection limit; totals are partial.");
+  lines.push("", "Cap warnings begin at 80% of the configured monthly cap. Costs are from gateway logs and are not invoice-reconciled.");
+
+  const subject = "QNFO AI Gateway cost report — " + month;
+  const text = lines.join(NL);
+  const stored = await storeDigest(env, "monthly-cost-report", subject, text);
+  const email = await sendDigest(env, subject, text);
+  return {
+    status: report.complete && email && email.ok ? "ok" : "error",
+    notes: {
+      month,
+      complete: !!report.complete,
+      gateways: (report.gateways || []).map((gateway) => ({ gateway: gateway.gateway, requests: gateway.requests, cost_usd: gateway.cost_usd })),
+      stored,
+      email
+    }
+  };
 }
 
 // ---------- portfolio sync: real PORTFOLIO-STATUS.md regeneration + GitHub PR ----------
@@ -1657,6 +1712,7 @@ const JOBS = {
   "research-scan": jobResearchScan,
   "weekly": jobWeekly,
   "weekly-ops": jobWeeklyOps,
+  "monthly-cost-report": jobMonthlyCostReport,
   "portfolio-sync": jobPortfolioSync,
   "zenodo-stats": jobZenodoStats,
   "board-sync": jobBoardSync,
