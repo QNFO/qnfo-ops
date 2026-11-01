@@ -54,7 +54,8 @@ function workerName(log) {
       if (metadata[key] != null && String(metadata[key]).trim()) return String(metadata[key]).trim();
     }
   }
-  return String(log.worker || "unattributed");
+  const worker = String(log.worker || "").trim();
+  return worker || "unattributed";
 }
 
 function roundedCost(value) {
