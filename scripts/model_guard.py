@@ -91,6 +91,20 @@ def atomic_json(path, data):
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
 
+def atomic_json_if_unchanged(path, data, expected):
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".", prefix=".mguard-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        with open(path, "rb") as f:
+            if f.read() != expected:
+                return False
+        os.replace(tmp, path)
+        return True
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
 def norm_key(v):
     return v if isinstance(v, dict) else None
 
@@ -705,15 +719,20 @@ def claude_model_guard():
         return {"model_state": "not-default-gateway"}
     drift = claude_model_drift(d)
     if drift:
-        latest = jload(CLAUDE_SETTINGS_PATH)
-        if not claude_default_gateway(latest):
-            return {"model_state": "not-default-gateway"}
-        latest_drift = claude_model_drift(latest)
-        if latest_drift:
+        for _ in range(3):
+            with open(CLAUDE_SETTINGS_PATH, "rb") as f:
+                snapshot = f.read()
+            latest = json.loads(snapshot.decode("utf-8"))
+            if not claude_default_gateway(latest):
+                return {"model_state": "not-default-gateway"}
+            latest_drift = claude_model_drift(latest)
+            if not latest_drift:
+                break
             want, env_want = claude_model_policy(latest)
             latest.update(want)
             latest.setdefault("env", {}).update(env_want)
-            atomic_json(CLAUDE_SETTINGS_PATH, latest)
+            if atomic_json_if_unchanged(CLAUDE_SETTINGS_PATH, latest, snapshot):
+                break
     live = jload(CLAUDE_SETTINGS_PATH)
     readback = claude_model_drift(live)
     if not claude_default_gateway(live):

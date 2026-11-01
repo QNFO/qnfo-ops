@@ -96,23 +96,26 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
     def test_preserves_settings_updated_concurrently_before_write(self):
         self.write_settings(self.settings())
         original_load = model_guard.jload
-        load_count = 0
+        original_write = model_guard.atomic_json_if_unchanged
+        write_count = 0
 
-        def load_after_concurrent_update(path):
-            nonlocal load_count
-            load_count += 1
-            if load_count == 2:
+        def write_after_concurrent_update(path, data, expected):
+            nonlocal write_count
+            write_count += 1
+            if write_count == 1:
                 concurrent = original_load(path)
                 concurrent["permissions"] = {"allow": ["Read", "Write"]}
                 concurrent["env"]["ANTHROPIC_AUTH_TOKEN"] = "updated-placeholder"
                 self.write_settings(concurrent)
-            return original_load(path)
+            return original_write(path, data, expected)
 
-        with patch.object(model_guard, "jload", side_effect=load_after_concurrent_update):
+        with patch.object(model_guard, "atomic_json_if_unchanged",
+                          side_effect=write_after_concurrent_update):
             result = model_guard.claude_model_guard()
 
         live = original_load(self.path)
         self.assertEqual(result["model_state"], "fixed")
+        self.assertEqual(write_count, 2)
         self.assertEqual(live["permissions"], {"allow": ["Read", "Write"]})
         self.assertEqual(live["env"]["ANTHROPIC_AUTH_TOKEN"], "updated-placeholder")
 
@@ -147,7 +150,7 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
 
     def test_failed_write_detected_by_readback(self):
         self.write_settings(self.settings())
-        with patch.object(model_guard, "atomic_json"):
+        with patch.object(model_guard, "atomic_json_if_unchanged", return_value=True):
             result = model_guard.claude_model_guard()
         self.assertEqual(result["model_state"], "verify-failed")
         self.assertIn("model", result["model_readback"])
@@ -180,7 +183,8 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
 
     def test_main_redacts_errors_and_returns_nonzero(self):
         self.write_settings(self.settings())
-        with patch.object(model_guard, "atomic_json", side_effect=OSError("test-placeholder")):
+        with patch.object(model_guard, "atomic_json_if_unchanged",
+                          side_effect=OSError("test-placeholder")):
             rc, output = self.run_main()
         self.assertEqual(rc, 1)
         self.assertEqual(output["stores"]["claude"]["model_error"], "settings-check-failed")
@@ -188,7 +192,7 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
 
     def test_main_reports_failed_readback(self):
         self.write_settings(self.settings())
-        with patch.object(model_guard, "atomic_json"):
+        with patch.object(model_guard, "atomic_json_if_unchanged", return_value=True):
             rc, output = self.run_main()
         self.assertEqual(rc, 2)
         self.assertEqual(output["stores"]["claude"]["model_state"], "verify-failed")
