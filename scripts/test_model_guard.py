@@ -33,6 +33,7 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
                 "ANTHROPIC_AUTH_TOKEN": "test-placeholder",
                 "ANTHROPIC_MODEL": "claude-opus-5.5",
                 "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5.5",
+                "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-opus-5.5",
                 "CLAUDE_CODE_SUBAGENT_MODEL": "opus",
                 "ANTHROPIC_SMALL_FAST_MODEL": "haiku",
             },
@@ -48,7 +49,8 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
         self.assertEqual(live["model"], "claude-sonnet-5.5")
         self.assertEqual(live["availableModels"], ["claude-sonnet-5.5"])
         for key in ("ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL",
-                    "ANTHROPIC_DEFAULT_SONNET_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL"):
+                    "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+                    "CLAUDE_CODE_SUBAGENT_MODEL"):
             self.assertEqual(live["env"][key], "claude-sonnet-5.5")
         for key in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_SMALL_FAST_MODEL"):
             self.assertEqual(live["env"][key], original["env"][key])
@@ -77,6 +79,7 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
             "https://attacker.invalid/v1/account/default/anthropic",
             "http://gateway.ai.cloudflare.com/v1/account/default/anthropic",
             "https://gateway.ai.cloudflare.com/v1/account/default/not-anthropic",
+            "https://gateway.ai.cloudflare.com/v1/account/default/anthropic/extra",
             "",
         ]
         for url in urls:
@@ -89,6 +92,39 @@ class ClaudeGatewayModelGuardTests(unittest.TestCase):
                 self.assertEqual(model_guard.claude_model_guard()["model_state"], "not-default-gateway")
                 with open(self.path, "rb") as f:
                     self.assertEqual(f.read(), before)
+
+    def test_preserves_settings_updated_concurrently_before_write(self):
+        self.write_settings(self.settings())
+        original_load = model_guard.jload
+        load_count = 0
+
+        def load_after_concurrent_update(path):
+            nonlocal load_count
+            load_count += 1
+            if load_count == 2:
+                concurrent = original_load(path)
+                concurrent["permissions"] = {"allow": ["Read", "Write"]}
+                concurrent["env"]["ANTHROPIC_AUTH_TOKEN"] = "updated-placeholder"
+                self.write_settings(concurrent)
+            return original_load(path)
+
+        with patch.object(model_guard, "jload", side_effect=load_after_concurrent_update):
+            result = model_guard.claude_model_guard()
+
+        live = original_load(self.path)
+        self.assertEqual(result["model_state"], "fixed")
+        self.assertEqual(live["permissions"], {"allow": ["Read", "Write"]})
+        self.assertEqual(live["env"]["ANTHROPIC_AUTH_TOKEN"], "updated-placeholder")
+
+    def test_preserves_non_opus_haiku_override(self):
+        d = self.settings()
+        d["env"]["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "claude-3-haiku"
+        self.write_settings(d)
+
+        model_guard.claude_model_guard()
+
+        self.assertEqual(model_guard.jload(self.path)["env"]["ANTHROPIC_DEFAULT_HAIKU_MODEL"],
+                         "claude-3-haiku")
 
     def test_compat_endpoint_and_missing_model_defaults(self):
         d = {"env": {"ANTHROPIC_BASE_URL":

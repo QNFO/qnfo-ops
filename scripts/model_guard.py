@@ -669,7 +669,7 @@ def claude_default_gateway(d):
     parts = url.path.rstrip("/").split("/")
     return (url.scheme == "https" and url.hostname == "gateway.ai.cloudflare.com"
             and len(parts) == 5 and parts[1] == "v1" and bool(parts[2])
-            and parts[3] == "default" and parts[4] in ("anthropic", "compat")
+            and parts[3] == "default" and parts[4] in ("anthropic", "compat"))
 
 
 def claude_model_policy(d):
@@ -685,6 +685,7 @@ def claude_model_policy(d):
     }
     for key in ("CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
                 "ANTHROPIC_DEFAULT_HAIKU_MODEL"):
+        if "opus" in str(env.get(key) or "").lower():
             env_want[key] = CLAUDE_GATEWAY_MODEL
     return want, env_want
 
@@ -704,10 +705,15 @@ def claude_model_guard():
         return {"model_state": "not-default-gateway"}
     drift = claude_model_drift(d)
     if drift:
-        want, env_want = claude_model_policy(d)
-        d.update(want)
-        d.setdefault("env", {}).update(env_want)
-        atomic_json(CLAUDE_SETTINGS_PATH, d)
+        latest = jload(CLAUDE_SETTINGS_PATH)
+        if not claude_default_gateway(latest):
+            return {"model_state": "not-default-gateway"}
+        latest_drift = claude_model_drift(latest)
+        if latest_drift:
+            want, env_want = claude_model_policy(latest)
+            latest.update(want)
+            latest.setdefault("env", {}).update(env_want)
+            atomic_json(CLAUDE_SETTINGS_PATH, latest)
     live = jload(CLAUDE_SETTINGS_PATH)
     readback = claude_model_drift(live)
     if not claude_default_gateway(live):
