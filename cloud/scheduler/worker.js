@@ -1002,16 +1002,16 @@ async function jobMonthlyCostReport(env) {
     if (gateway.missing_cost_requests) lines.push("Requests without valid cost: " + gateway.missing_cost_requests);
     if (gateway.invalid_timestamp_logs) lines.push("Logs without usable timestamps: " + gateway.invalid_timestamp_logs);
     lines.push("Providers (spend / cap):");
-    for (const provider of (gateway.by_provider || []).slice(0, 12)) {
+    for (const provider of (gateway.by_provider || [])) {
       const cap = provider.cap_usd == null ? "no configured cap" : "$" + provider.cap_usd + " (" + Math.round(provider.cost_usd / provider.cap_usd * 100) + "%; " + provider.cap_status + ")";
       lines.push("- " + provider.provider + ": $" + provider.cost_usd + " / " + cap + " (" + provider.requests + " requests)");
     }
     lines.push("Models:");
-    for (const model of (gateway.by_model || []).slice(0, 12)) lines.push("- " + model.model + ": $" + model.cost_usd + " (" + model.requests + " requests)");
+    for (const model of (gateway.by_model || [])) lines.push("- " + model.model + ": $" + model.cost_usd + " (" + model.requests + " requests)");
     lines.push("Workers:");
-    for (const worker of (gateway.by_worker || []).slice(0, 12)) lines.push("- " + worker.worker + ": $" + worker.cost_usd + " (" + worker.requests + " requests)");
+    for (const worker of (gateway.by_worker || [])) lines.push("- " + worker.worker + ": $" + worker.cost_usd + " (" + worker.requests + " requests)");
     lines.push("Provider / model / worker:");
-    for (const row of (gateway.by_provider_model_worker || []).slice(0, 12)) {
+    for (const row of (gateway.by_provider_model_worker || [])) {
       lines.push("- " + row.provider + " / " + row.model + " / " + row.worker + ": $" + row.cost_usd + " (" + row.requests + " requests)");
     }
   }
