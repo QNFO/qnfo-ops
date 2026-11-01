@@ -228,7 +228,7 @@ def main():
     # PROMPT-PARITY-GUARD-1 (2026-09-26): fold prompt-parity-guard.py into THIS FATAL gate.
     # It carries D1 store-rot / D2 foreign-store / D3 anchor-skew across the system prompt AND
     # every versioned skill (title == newest-banner == last-footer). It existed but was wired
-    # ADVISORY-only in backup_deepchat.py and was OUTSIDE the closeout trio, so a title!=footer
+    # previously advisory-only and OUTSIDE the closeout trio, so a title!=footer
     # skew (canonical: system-prompt footer v4.40 while title v4.43; kaizen H1 v2.159 while
     # footer v2.160) produced rc=0 everywhere and slipped through. Wiring it here makes the
     # anchor check impossible to miss: `python prompt-store-verify.py` now covers it.
@@ -486,8 +486,8 @@ def check_guard_mirror_parity():
     import hashlib as _h
     live = r"C:\Users\LENOVO\.deepchat\scripts"
     ops = r"C:\Users\LENOVO\Documents\GitHub\qnfo-ops\scripts"
-    names = ("prompt-store-verify.py", "prompt-parity-guard.py", "backup_deepchat.py",
-             "model_guard.py", "sync_system_prompt.py", "ops-settings-guard.py",
+    names = ("prompt-store-verify.py", "prompt-parity-guard.py", "model_guard.py",
+             "sync_system_prompt.py", "ops-settings-guard.py",
              "scheduler-guard.py", "adversarial-guard.py")
     errs = 0
     def _norm(p):
