@@ -58,6 +58,11 @@ function workerName(log) {
   return worker || "unattributed";
 }
 
+function gatewayReportMonthMatch(month) {
+  const match = String(month || "").match(/^(\d{4})-(\d{2})$/);
+  return match && Number(match[2]) >= 1 && Number(match[2]) <= 12 ? match : null;
+}
+
 function roundedCost(value) {
   return Math.round((value + Number.EPSILON) * 1e6) / 1e6;
 }
@@ -122,13 +127,13 @@ export function aggregateGatewayCostLogs(gateway, logs, start, end) {
 }
 
 async function collectGatewayCostReport(env, month) {
-  const match = String(month || "").match(/^(\d{4})-(\d{2})$/);
-  if (!match || Number(match[2]) < 1 || Number(match[2]) > 12) throw new Error("month must be YYYY-MM");
+  const match = gatewayReportMonthMatch(month);
+  if (!match) throw new Error("month must be YYYY-MM");
   const startDate = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
   const endDate = new Date(Date.UTC(Number(match[1]), Number(match[2]), 1));
   const start = startDate.toISOString(), end = endDate.toISOString();
   const filters = [
-    { key: "created_at", operator: "geq", value: [start] }
+    { key: "created_at", operator: "geq", value: [start] },
     { key: "created_at", operator: "lt", value: [end] }
   ];
   const gateways = [];
@@ -551,8 +556,12 @@ export default {
       return new Response(JSON.stringify(row ? JSON.parse(row.data) : { error: "no analytics yet" }), { headers: { "Content-Type": "application/json", ...cors } });
     }
     if (path === "/gateway-cost-report" && method === "GET") {
+      const month = url.searchParams.get("month");
+      if (!gatewayReportMonthMatch(month)) {
+        return new Response(JSON.stringify({ error: "month must be YYYY-MM" }), { status: 400, headers: { "Content-Type": "application/json", ...cors } });
+      }
       try {
-        const report = await collectGatewayCostReport(env, url.searchParams.get("month"));
+        const report = await collectGatewayCostReport(env, month);
         return new Response(JSON.stringify(report), { headers: { "Content-Type": "application/json", ...cors } });
       } catch (e) {
         return new Response(JSON.stringify({ error: "gateway cost report unavailable" }), { status: 502, headers: { "Content-Type": "application/json", ...cors } });

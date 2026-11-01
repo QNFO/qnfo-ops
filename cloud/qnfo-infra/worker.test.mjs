@@ -37,6 +37,14 @@ test("applies the qnfo-infra gateway cap to each provider", () => {
   assert.equal(report.by_provider[0].cap_status, "over-cap");
 });
 
+test("treats a whitespace-only worker value as unattributed", () => {
+  const report = aggregateGatewayCostLogs("default", [
+    { created_at: "2026-10-15T12:00:00Z", provider: "openai", model: "model-x", cost: 1, worker: " " }
+  ], "2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z");
+
+  assert.equal(report.by_worker[0].worker, "unattributed");
+});
+
 test("the authenticated report route fetches the requested calendar month from both gateways", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
@@ -62,8 +70,57 @@ test("the authenticated report route fetches the requested calendar month from b
     for (const url of calls) {
       const filters = JSON.parse(url.searchParams.get("filters"));
       assert.deepEqual(filters.map((filter) => filter.value[0]), ["2026-10-01T00:00:00.000Z", "2026-11-01T00:00:00.000Z"]);
+      assert.deepEqual(filters.map((filter) => filter.operator), ["geq", "lt"]);
       assert.equal(url.searchParams.get("per_page"), "50");
     }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("continues pagination when a short page reports a larger total_count", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url);
+    calls.push(parsed);
+    const page = Number(parsed.searchParams.get("page"));
+    const result = page === 1
+      ? [{ created_at: "2026-10-15T12:00:00Z", provider: "openai", model: "model-x", cost: 1 }]
+      : Array.from({ length: 50 }, () => ({ created_at: "2026-10-15T12:00:00Z", provider: "openai", model: "model-x", cost: 1 }));
+    return new Response(JSON.stringify({ success: true, result, result_info: { total_count: 51 } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+  try {
+    const response = await worker.fetch(new Request("https://qnfo-infra/gateway-cost-report?month=2026-10", {
+      headers: { Authorization: ["Bearer", "test-token"].join(" ") }
+    }), { INFRA_TOKEN: "test-token", CF_ACCOUNT: "test-account", CF_TOKEN: "test-token" });
+    const report = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(report.complete, true);
+    assert.deepEqual(calls.map((url) => url.searchParams.get("page")), ["1", "2", "1", "2"]);
+    assert.deepEqual(report.gateways.map((gateway) => gateway.requests), [51, 51]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("returns 400 for an invalid report month without contacting Cloudflare", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("Cloudflare should not be contacted");
+  };
+  try {
+    const response = await worker.fetch(new Request("https://qnfo-infra/gateway-cost-report?month=2026-13", {
+      headers: { Authorization: ["Bearer", "test-token"].join(" ") }
+    }), { INFRA_TOKEN: "test-token", CF_ACCOUNT: "test-account", CF_TOKEN: "test-token" });
+    const result = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(result, { error: "month must be YYYY-MM" });
   } finally {
     globalThis.fetch = originalFetch;
   }
