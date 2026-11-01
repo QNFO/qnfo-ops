@@ -517,7 +517,7 @@ async function jobEmailTriage(env) {
 
 const REGISTER_R2_KEY = "obsidian/notes/v1/_personal-gtd.md";
 const CLOUD_APPEND_R2_KEY = "obsidian/notes/v1/_gtd-cloud-append.md";
-const AI_MODEL = "@cf/deepseek-ai/deepseek-v4-flash-0731";
+const AI_MODEL = "dynamic/value";
 
 async function r2GetText(env, key) {
   try {
