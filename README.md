@@ -1,3 +1,5 @@
+> **MOVED (2026-11-04):** this repository is archived. Its content now lives in [QNFO/qnfo-workers/docs/ops-governance](https://github.com/QNFO/qnfo-workers/tree/main/docs/ops-governance).
+
 # QNFO Operations & Governance (QNFO.OPS)
 
 Operations & Governance program — Audit, Handoff, Policy, Skills, WBS Migration.
