@@ -17,11 +17,13 @@ function dbFor(def, env) {
 }
 
 async function runAI(def, env) {
-  const model = def.model || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+  const model = ["dynamic/value", "dynamic/standard", "dynamic/premium"].includes(def.model)
+    ? def.model
+    : "dynamic/value";
   const resp = await env.AI.run(model, {
     messages: [{ role: "user", content: def.prompt || "ping" }],
     max_tokens: def.max_tokens || 1024
-  });
+  }, { gateway: { id: "default" } });
   const text = typeof resp === "string" ? resp : (resp.response || JSON.stringify(resp));
   return { type: "ai", model: model, output: String(text).slice(0, 2000) };
 }

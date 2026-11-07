@@ -1,5 +1,7 @@
 # fleet-executor
 
+Models routed via AI Gateway dynamic routes -- see qnfo-ops issue QNFO/qnfo-ops#7.
+
 Dynamic task execution engine (fleet consolidation 79->10, phase 1).
 
 - `worker.js` — executes tasks defined as DATA in qnfo-audit D1: reads `fleet_tasks` rows (type: sql|ai|http), runs them, writes the `fleet_runs` execution ledger.

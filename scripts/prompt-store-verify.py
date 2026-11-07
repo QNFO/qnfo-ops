@@ -137,6 +137,25 @@ def read_store(name, path):
 def _proj(cp):
     return {p.get("id"): (p.get("name"), p.get("content")) for p in cp} if isinstance(cp, list) else None
 
+def check_chatbox_prompt_parity():
+    """CHATBOX-PROMPT-NO-CANONICAL-ARTIFACT-1 (issue 2807, 2026-10-17): fold the ChatBox prompt
+    guard into this FATAL gate. Before this, nothing compared the live ChatBox prompt to any
+    canonical text -- chatbox-system-prompt-canonical.txt is a different, shorter document and
+    model_guard only checks that the doctrine block is present. So an owner directive block could
+    be dropped by a ChatBox settings write and every gate would still report PASS."""
+    _cg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chatbox-prompt-guard.py")
+    if not os.path.isfile(_cg):
+        print("[CHATBOX-GUARD] missing guard: " + _cg)
+        return False
+    _r = subprocess.run([sys.executable, _cg, "--check"], capture_output=True, text=True)
+    if _r.stdout.strip():
+        print(_r.stdout.strip()[-900:])
+    if _r.returncode != 0:
+        print("[CHATBOX-PROMPT-DRIFT] chatbox-prompt-guard --check rc=%d (run it without --check to heal)" % _r.returncode)
+        return False
+    return True
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "inventory":
         print(f"{'store':16s} {'entries':>7s} {'violations':>10s}  status")
@@ -209,7 +228,7 @@ def main():
     # PROMPT-PARITY-GUARD-1 (2026-09-26): fold prompt-parity-guard.py into THIS FATAL gate.
     # It carries D1 store-rot / D2 foreign-store / D3 anchor-skew across the system prompt AND
     # every versioned skill (title == newest-banner == last-footer). It existed but was wired
-    # ADVISORY-only in backup_deepchat.py and was OUTSIDE the closeout trio, so a title!=footer
+    # previously advisory-only and OUTSIDE the closeout trio, so a title!=footer
     # skew (canonical: system-prompt footer v4.40 while title v4.43; kaizen H1 v2.159 while
     # footer v2.160) produced rc=0 everywhere and slipped through. Wiring it here makes the
     # anchor check impossible to miss: `python prompt-store-verify.py` now covers it.
@@ -219,6 +238,10 @@ def main():
         if _pgr.stdout:
             print(_pgr.stdout.strip()[-1200:])
         rc = max(rc, 1 if _pgr.returncode != 0 else 0)
+
+    # NOTE polarity: this check returns True on success (unlike the errs-counting checks above,
+    # whose 0 means healthy). Inverting the idiom here made a PASSED check fail the gate.
+    rc = max(rc, 0 if check_chatbox_prompt_parity() else 1)
 
     rc = max(rc, 1 if check_guard_mirror_parity() else 0)
 
@@ -249,6 +272,11 @@ SYSPROMPT_STORES = {
     "repo_copy_md":    r"C:\Users\LENOVO\Documents\GitHub\qnfo-skills\system-prompt-v2.7.md",
     "skills_live_md":  r"C:\Users\LENOVO\.deepchat\skills\system-prompt-v2.7.md",
     "agents_row":     r"C:\Users\LENOVO\AppData\Roaming\DeepChat\app_db\agent.db",
+    # PROMPT-STORE-CONCURRENT-CLOBBER-1 (issue 2805, 2026-10-17): this row was OUTSIDE the store
+    # list, so a concurrent sync could restore three stores to the old text while this one kept
+    # the new text and the gate still reported "6 stores identical". A store the guard does not
+    # read is a store it cannot protect.
+    "db_default_row":  r"C:\Users\LENOVO\AppData\Roaming\DeepChat\app_db\agent.db",
 }
 
 def read_system_prompt(name, path):
@@ -276,6 +304,14 @@ def read_system_prompt(name, path):
             if not v:
                 return None, "no deepchat agent row"
             return json.loads(v[0]).get("systemPrompt"), None
+        if name == "db_default_row":
+            c = sqlite3.connect("file:%s?mode=ro" % path, uri=True, timeout=60)
+            v = c.execute("SELECT value_json FROM app_settings WHERE key='default_system_prompt'").fetchone()
+            c.close()
+            if not v:
+                return None, "no default_system_prompt row"
+            j = json.loads(v[0])
+            return (j if isinstance(j, str) else None), None
         return None, "unknown store"
     except Exception as e:
         return None, str(e)
@@ -450,8 +486,8 @@ def check_guard_mirror_parity():
     import hashlib as _h
     live = r"C:\Users\LENOVO\.deepchat\scripts"
     ops = r"C:\Users\LENOVO\Documents\GitHub\qnfo-ops\scripts"
-    names = ("prompt-store-verify.py", "prompt-parity-guard.py", "backup_deepchat.py",
-             "model_guard.py", "sync_system_prompt.py", "ops-settings-guard.py",
+    names = ("prompt-store-verify.py", "prompt-parity-guard.py", "model_guard.py",
+             "sync_system_prompt.py", "ops-settings-guard.py",
              "scheduler-guard.py", "adversarial-guard.py")
     errs = 0
     def _norm(p):

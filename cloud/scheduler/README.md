@@ -1,5 +1,7 @@
 # QNFO Cloud Scheduler (qnfo-cloud-ops)
 
+Models routed via AI Gateway dynamic routes -- see qnfo-ops issue QNFO/qnfo-ops#7.
+
 Cloud replacement for the local DeepChat scheduled-task fleet.
 
 - `worker.js` — single Worker hosting 12 jobs (11 cron + backfill; see AMS_SCHEDULE + JOBS in source)

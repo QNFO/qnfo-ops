@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""model_guard.py v3.1 (2026-10-01) - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
+"""model_guard.py v3.2 (2026-11-01) - OPS-SETTINGS-IMMUTABLE-1 permanent drift guard (2026-09-09).
 HARDEN-AND-MANDATE (user directive 2026-09-09, applied systemwide): the canonical ops-exec
 settings below are IMMUTABLE - no agent, session, or process may change them:
   model key        : QNFO-OPS / ops (the endpoint's single advertised model id) in ALL four DeepChat keys (DB + JSON)
@@ -19,10 +19,13 @@ Trigger: Windows Task Scheduler 'QNFO-ModelKey-Guard' every 30 min.
 Client-prompt guards: CHATBOX-PROMPT-GUARD-1 (settings.defaultPrompt) + CLAUDE-PROMPT-GUARD-1
 (~/.claude/CLAUDE.md) restore each client's system prompt from its canonical; SHARED-DOCTRINE-PARITY-1
 asserts 5 cross-client doctrine concepts across the DeepChat/ChatBox/Claude canonicals.
+F2: existing Claude Code user settings on Cloudflare's default gateway are pinned
+to Sonnet; Opus aliases must not be restored without explicit owner approval.
 Recurrence-ZERO-1 guard for MODEL-KEY-FILE-DRIFT-1 + model-parameter drift.
 Exit codes: 0=clean/fixed 1=check-error 2=failed-to-fix. Idempotent; silent when clean.
 """
 import json, os, sqlite3, sys, tempfile, datetime, time
+from urllib.parse import urlsplit
 
 APP_DIR = os.path.expandvars(r"%APPDATA%\DeepChat")
 DB = os.path.join(APP_DIR, "app_db", "agent.db")
@@ -87,6 +90,20 @@ def atomic_json(path, data):
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
+
+def atomic_json_if_unchanged(path, data, expected):
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".", prefix=".mguard-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        with open(path, "rb") as f:
+            if f.read() != expected:
+                return False
+        os.replace(tmp, path)
+        return True
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
 
 def norm_key(v):
     return v if isinstance(v, dict) else None
@@ -648,6 +665,86 @@ def chatbox_prompt_fix(d):
 CLAUDE_MD_PATH = os.path.join(os.path.expanduser("~"), ".claude", "CLAUDE.md")
 CLAUDE_PROMPT_CANON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "claude-system-prompt-canonical.txt")
 CLAUDE_PROMPT_STALE = ("workers.dev", "ops-exec", "personal-twin-chat", "~54 workers", "~37 workers", "chatbox-ai")
+CLAUDE_SETTINGS_PATH = os.path.join(
+    os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude"),
+    "settings.json",
+)
+CLAUDE_GATEWAY_MODEL = "claude-sonnet-5.5"
+
+
+def claude_default_gateway(d):
+    if not isinstance(d, dict) or not isinstance(d.get("env", {}), dict):
+        raise ValueError("invalid settings structure")
+    env = d.get("env", {})
+    base_url = env.get("ANTHROPIC_BASE_URL", "")
+    if not isinstance(base_url, str):
+        raise ValueError("invalid gateway URL")
+    url = urlsplit(base_url)
+    parts = url.path.rstrip("/").split("/")
+    return (url.scheme == "https" and url.hostname == "gateway.ai.cloudflare.com"
+            and len(parts) == 5 and parts[1] == "v1" and bool(parts[2])
+            and parts[3] == "default" and parts[4] in ("anthropic", "compat"))
+
+
+def claude_model_policy(d):
+    env = d.get("env") or {}
+    want = {
+        "model": CLAUDE_GATEWAY_MODEL,
+        "availableModels": [CLAUDE_GATEWAY_MODEL],
+    }
+    env_want = {
+        "ANTHROPIC_MODEL": CLAUDE_GATEWAY_MODEL,
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": CLAUDE_GATEWAY_MODEL,
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": CLAUDE_GATEWAY_MODEL,
+    }
+    for key in ("CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
+                "ANTHROPIC_DEFAULT_HAIKU_MODEL"):
+        if "opus" in str(env.get(key) or "").lower():
+            env_want[key] = CLAUDE_GATEWAY_MODEL
+    return want, env_want
+
+
+def claude_model_drift(d):
+    want, env_want = claude_model_policy(d)
+    env = d.get("env") or {}
+    return ([key for key, value in want.items() if d.get(key) != value]
+            + ["env." + key for key, value in env_want.items() if env.get(key) != value])
+
+
+def claude_model_guard():
+    if not os.path.exists(CLAUDE_SETTINGS_PATH):
+        return {"model_state": "settings-missing"}
+    d = jload(CLAUDE_SETTINGS_PATH)
+    if not claude_default_gateway(d):
+        return {"model_state": "not-default-gateway"}
+    drift = claude_model_drift(d)
+    if drift:
+        for _ in range(3):
+            with open(CLAUDE_SETTINGS_PATH, "rb") as f:
+                snapshot = f.read()
+            latest = json.loads(snapshot.decode("utf-8"))
+            if not claude_default_gateway(latest):
+                return {"model_state": "not-default-gateway"}
+            latest_drift = claude_model_drift(latest)
+            if not latest_drift:
+                break
+            want, env_want = claude_model_policy(latest)
+            latest.update(want)
+            latest.setdefault("env", {}).update(env_want)
+            if atomic_json_if_unchanged(CLAUDE_SETTINGS_PATH, latest, snapshot):
+                break
+    live = jload(CLAUDE_SETTINGS_PATH)
+    readback = claude_model_drift(live)
+    if not claude_default_gateway(live):
+        readback.append("env.ANTHROPIC_BASE_URL")
+    return {
+        "client": "claude-code",
+        "gateway": "default",
+        "model": CLAUDE_GATEWAY_MODEL,
+        "model_drift_before": drift,
+        "model_readback": readback,
+        "model_state": "verify-failed" if readback else ("fixed" if drift else "clean"),
+    }
 
 def _claude_prompt_canon():
     try:
@@ -985,6 +1082,15 @@ def main():
                 rec["prompt_state"] = "fixed" if cd else "clean"
         except Exception as e:
             out["stores"].setdefault("claude", {})["prompt_error"] = str(e); rc = 1
+    try:
+        model_result = claude_model_guard()
+        out["stores"].setdefault("claude", {}).update(model_result)
+        if model_result["model_state"] == "verify-failed":
+            rc = max(rc, 2)
+    except Exception:
+        # Settings may contain credentials; never include their contents in diagnostics.
+        out["stores"].setdefault("claude", {})["model_error"] = "settings-check-failed"
+        rc = max(rc, 1)
     # SHARED-DOCTRINE-PARITY-1: report shared-doctrine marker coverage across the three canonicals.
     parity = shared_doctrine_parity()
     out["shared_doctrine_parity"] = parity

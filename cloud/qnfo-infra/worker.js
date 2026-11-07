@@ -6,8 +6,13 @@
 // Author: QNFO. Deployed via Cloudflare API. Canonical source: QNFO/qnfo-ops/cloud/qnfo-infra/worker.js
 
 const NL = String.fromCharCode(10);
-const VERSION = "1.5.1";
+const VERSION = "1.6.0";
 const CLOUD_OPS_SEARCH = "https://qnfo-cloud-ops.q08.workers.dev/search";
+const AI_GATEWAYS = ["default", "qnfo-infra"];
+const GATEWAY_LOG_PAGE_SIZE = 50;
+const GATEWAY_LOG_MAX_PAGES = 100;
+const DEFAULT_PROVIDER_CAPS = { "workers-ai": 100, anthropic: 180, openai: 180, deepseek: 180 };
+const GATEWAY_PROVIDER_CAPS = { default: DEFAULT_PROVIDER_CAPS, "qnfo-infra": null };
 
 function auth(token, env) {
   const exp = env.INFRA_TOKEN;
@@ -31,6 +36,140 @@ async function cfRaw(env, path) {
     headers: { Authorization: "Bearer " + env.CF_TOKEN, "User-Agent": "Mozilla/5.0 (qnfo-infra)" }
   });
   return r;
+}
+
+function normalizedName(value, fallback) {
+  return String(value || fallback).trim().toLowerCase().replace(/[\s_]+/g, "-") || fallback;
+}
+
+function workerName(log) {
+  const metadataValues = [log.metadata, log.request_metadata, log.custom_metadata, log.request && log.request.metadata];
+  for (const value of metadataValues) {
+    let metadata = value;
+    if (typeof metadata === "string") {
+      try { metadata = JSON.parse(metadata); } catch (e) { metadata = null; }
+    }
+    if (!metadata || typeof metadata !== "object") continue;
+    for (const key of ["worker", "worker_name", "workerName", "service", "service_name"]) {
+      if (metadata[key] != null && String(metadata[key]).trim()) return String(metadata[key]).trim();
+    }
+  }
+  const worker = String(log.worker || "").trim();
+  return worker || "unattributed";
+}
+
+function roundedCost(value) {
+  return Math.round((value + Number.EPSILON) * 1e6) / 1e6;
+}
+
+function sortedTotals(totals, keyName) {
+  return Object.entries(totals).map(([key, value]) => ({ [keyName]: key, requests: value.requests, cost_usd: roundedCost(value.cost) }))
+    .sort((a, b) => b.cost_usd - a.cost_usd || a[keyName].localeCompare(b[keyName]));
+}
+
+export function aggregateGatewayCostLogs(gateway, logs, start, end) {
+  const startMs = Date.parse(start), endMs = Date.parse(end);
+  const providers = {}, models = {}, workers = {}, combinations = {};
+  let requests = 0, cost = 0, missingCost = 0, invalidTimestamp = 0, outsideWindow = 0;
+  for (const entry of logs) {
+    const log = entry && typeof entry === "object" ? entry : {};
+    const timestamp = Date.parse(log.created_at || log.timestamp || "");
+    if (!Number.isFinite(timestamp)) { invalidTimestamp++; continue; }
+    if (timestamp < startMs || timestamp >= endMs) { outsideWindow++; continue; }
+    const provider = normalizedName(log.provider, "unknown");
+    const model = String(log.model || "unknown");
+    const worker = workerName(log);
+    const hasCost = log.cost !== null && log.cost !== undefined && String(log.cost).trim() !== "";
+    const rawCost = hasCost ? Number(log.cost) : NaN;
+    const requestCost = Number.isFinite(rawCost) && rawCost >= 0 ? rawCost : 0;
+    if (!Number.isFinite(rawCost) || rawCost < 0) missingCost++;
+    requests++;
+    cost += requestCost;
+    for (const [totals, key] of [[providers, provider], [models, model], [workers, worker]]) {
+      totals[key] = totals[key] || { requests: 0, cost: 0 };
+      totals[key].requests++;
+      totals[key].cost += requestCost;
+    }
+    const combination = [provider, model, worker].join("\u0000");
+    combinations[combination] = combinations[combination] || { provider, model, worker, requests: 0, cost: 0 };
+    combinations[combination].requests++;
+    combinations[combination].cost += requestCost;
+  }
+  const caps = GATEWAY_PROVIDER_CAPS[gateway];
+  const providerTotals = sortedTotals(providers, "provider").map((entry) => {
+    const cap = caps === null ? 50 : caps && caps[entry.provider];
+    const ratio = cap ? entry.cost_usd / cap : null;
+    return {
+      ...entry,
+      cap_usd: cap || null,
+      cap_status: ratio === null ? "unconfigured" : ratio >= 1 ? "over-cap" : ratio >= 0.8 ? "near-cap" : "ok"
+    };
+  });
+  return {
+    gateway,
+    requests,
+    cost_usd: roundedCost(cost),
+    missing_cost_requests: missingCost,
+    invalid_timestamp_logs: invalidTimestamp,
+    out_of_window_logs: outsideWindow,
+    by_provider: providerTotals,
+    by_model: sortedTotals(models, "model"),
+    by_worker: sortedTotals(workers, "worker"),
+    by_provider_model_worker: Object.values(combinations)
+      .map((entry) => ({ ...entry, cost_usd: roundedCost(entry.cost) }))
+      .sort((a, b) => b.cost_usd - a.cost_usd || a.provider.localeCompare(b.provider) || a.model.localeCompare(b.model) || a.worker.localeCompare(b.worker))
+  };
+}
+
+async function collectGatewayCostReport(env, month) {
+  const match = String(month || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match || Number(match[2]) < 1 || Number(match[2]) > 12) throw new Error("month must be YYYY-MM");
+  const startDate = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
+  const endDate = new Date(Date.UTC(Number(match[1]), Number(match[2]), 1));
+  const start = startDate.toISOString(), end = endDate.toISOString();
+  const filters = [
+    { key: "created_at", operator: "geq", value: [start] }
+    { key: "created_at", operator: "lt", value: [end] }
+  ];
+  const gateways = [];
+  for (const gateway of AI_GATEWAYS) {
+    const logs = [];
+    let complete = false;
+    for (let page = 1; page <= GATEWAY_LOG_MAX_PAGES; page++) {
+      const query = new URLSearchParams({
+        filters: JSON.stringify(filters),
+        order_by: "created_at",
+        order_by_direction: "asc",
+        page: String(page),
+        per_page: String(GATEWAY_LOG_PAGE_SIZE)
+      });
+      const response = await cfRaw(env, "/ai-gateway/gateways/" + encodeURIComponent(gateway) + "/logs?" + query.toString());
+      if (!response.ok) throw new Error(gateway + " logs HTTP " + response.status);
+      const body = await response.json();
+      if (!body || body.success === false || !Array.isArray(body.result)) throw new Error(gateway + " logs response was invalid");
+      logs.push(...body.result);
+      const totalCount = body.result_info && body.result_info.total_count;
+      const total = Number(totalCount);
+      const hasTotal = totalCount != null && Number.isFinite(total);
+      if ((hasTotal && logs.length >= total) || (!hasTotal && body.result.length < GATEWAY_LOG_PAGE_SIZE)) {
+        complete = true;
+        break;
+      }
+    }
+    gateways.push({
+      ...aggregateGatewayCostLogs(gateway, logs, start, end),
+      complete,
+      pages_limit: complete ? null : GATEWAY_LOG_MAX_PAGES
+    });
+  }
+  return {
+    month,
+    from: start,
+    to_exclusive: end,
+    source: "AI Gateway request-log cost fields; not invoice-reconciled",
+    complete: gateways.every((gateway) => gateway.complete),
+    gateways
+  };
 }
 async function gql(env, query) {
   const r = await fetch("https://api.cloudflare.com/client/v4/graphql", {
@@ -410,6 +549,14 @@ export default {
     if (path === "/analytics" && method === "GET") {
       const row = await env.AUDIT.prepare("SELECT data FROM infra_state WHERE kind='analytics' ORDER BY ts DESC LIMIT 1").first();
       return new Response(JSON.stringify(row ? JSON.parse(row.data) : { error: "no analytics yet" }), { headers: { "Content-Type": "application/json", ...cors } });
+    }
+    if (path === "/gateway-cost-report" && method === "GET") {
+      try {
+        const report = await collectGatewayCostReport(env, url.searchParams.get("month"));
+        return new Response(JSON.stringify(report), { headers: { "Content-Type": "application/json", ...cors } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "gateway cost report unavailable" }), { status: 502, headers: { "Content-Type": "application/json", ...cors } });
+      }
     }
     if (path === "/records" && method === "GET") {
       const row = await env.AUDIT.prepare("SELECT data FROM infra_state WHERE kind='records' ORDER BY ts DESC LIMIT 1").first();
